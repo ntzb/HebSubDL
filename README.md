@@ -7,7 +7,7 @@ Supports:
 
 #
 
-for Ktuvit - you need to use your email, and the encoded password as per these instructions (thanks CaTz):
+for Ktuvit - you need to use your email, and the encoded password as per these instructions (thanks [CaTz](https://github.com/XBMCil/service.subtitles.ktuvit)):
 1. Open [ktuvit.me](https://www.ktuvit.me) in the browser
 2. Open [developer tools](https://developers.google.com/web/tools/chrome-devtools/open)  (in Windows <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>c</kbd>
 )
