@@ -28,10 +28,10 @@ To Do:
 
 - ~~work with Git~~
 - ~~recheck providers and fix as needed~~
-add database with simple table - file path, status (downloaded, not found, empty (not searched?)), ~~login cookie time validity~~
-~~add log file with proper logger and logging levels~~
-add timeouts to read drive and look for missing subtitles: scanner (https://docs.oracle.com/javase/tutorial/essential/io/notification.html)
-add to config.properties: ~~user/pass/api keys for providers~~, ignore keywords for scanner, file paths for scanner, time and frequency to run scanner
-~~minimize to tray~~
-(?) expose api to be called from kodi/others
+- add database with simple table - file path, status (downloaded, not found, empty (not searched?)), ~~login cookie time validity~~
+- ~~add log file with proper logger and logging levels~~
+- add timeouts to read drive and look for missing subtitles: scanner (https://docs.oracle.com/javase/tutorial/essential/io/notification.html)
+- add to config.properties: ~~user/pass/api keys for providers~~, ignore keywords for scanner, file paths for scanner, time and frequency to run scanner
+- ~~minimize to tray~~
+- (?) expose api to be called from kodi/others
 
