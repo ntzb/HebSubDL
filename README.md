@@ -19,3 +19,16 @@ console.log(`Now past it in the addon's settings at the Encrypted password field
 ![Gujn9Y8vTF](https://user-images.githubusercontent.com/9304194/94992868-897f0100-0595-11eb-8694-0272ae2f19b9.gif)
 
 for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent
+
+
+To Do:
+
+~~- work with Git
+~~- recheck providers and fix as needed
+- add database with simple table - file path, status (downloaded, not found, empty (not searched?)), ~~login cookie time validity
+~~- add log file with proper logger and logging levels
+- add timeouts to read drive and look for missing subtitles: scanner (https://docs.oracle.com/javase/tutorial/essential/io/notification.html)
+- add to config.properties: ~~user/pass/api keys for providers~~, ignore keywords for scanner, file paths for scanner, time and frequency to run scanner
+~~- minimize to tray
+- (?) expose api to be called from kodi/others
+
