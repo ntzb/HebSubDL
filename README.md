@@ -20,6 +20,8 @@ console.log(`Now past it in the addon's settings at the Encrypted password field
 ``` 
 ![Gujn9Y8vTF](https://user-images.githubusercontent.com/9304194/94992868-897f0100-0595-11eb-8694-0272ae2f19b9.gif)
 
+#
+
 for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent
 
 #
