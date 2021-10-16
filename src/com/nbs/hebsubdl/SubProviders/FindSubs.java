@@ -9,10 +9,7 @@ import org.apache.commons.io.FilenameUtils;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 
 public class FindSubs {
@@ -25,8 +22,8 @@ public class FindSubs {
         //SubscenterSubProvider subscenterSubProvider = new SubscenterSubProvider();
 
         //providersList.add(new WizdomSubProvider());
-        providersList.add(new KtuvitSubProvider());
-        //providersList.add(new OpensubtitlesSubProvider());
+        //providersList.add(new KtuvitSubProvider());
+        providersList.add(new OpensubtitlesSubProvider());
         //providersList.add(subscenterSubProvider); - DEAD
         int count = 1;
         for (MediaFile mediaFile : mediaFileList) {

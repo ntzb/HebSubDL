@@ -3,7 +3,6 @@ package com.nbs.hebsubdl.SubProviders;
 import com.nbs.hebsubdl.DbAccess;
 import com.nbs.hebsubdl.Logger;
 import com.nbs.hebsubdl.MediaFile;
-
 import com.nbs.hebsubdl.PropertiesClass;
 import org.apache.commons.io.FilenameUtils;
 import org.json.simple.JSONArray;
@@ -13,7 +12,6 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
