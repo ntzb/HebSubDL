@@ -37,8 +37,6 @@ public class MainGUI {
         frame.setContentPane(mainGUI.mainPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        List<File> itemsList = null;
-
         mainGUI.pathToLoadTA.setDropTarget(new DropTarget() {
             public synchronized void drop(DropTargetDropEvent evt) {
                 try {
@@ -53,7 +51,7 @@ public class MainGUI {
             }
         });
 
-        mainGUI.browseButton.addActionListener(event -> browseForItems(mainGUI,frame,itemsList));
+        mainGUI.browseButton.addActionListener(event -> browseForItems(mainGUI,frame));
         mainGUI.goButton.addActionListener(event -> fillFilesTable(frame,mainGUI.filesTable, mainGUI.pathToLoadTA));
         SettingsDialog settingsDialog = new SettingsDialog();
         mainGUI.settingsButton.addActionListener(event -> settingsDialog.showDiag());
@@ -68,18 +66,18 @@ public class MainGUI {
             if (FilesAndFolders.isDraggedItemAllowed(item)) {
                 if (itemCount==0)
                     mainGUI.pathToLoadTA.setText("");
-                mainGUI.pathToLoadTA.append(item.toString()+"\n"); }
+                mainGUI.pathToLoadTA.append(item +"\n"); }
             itemCount++;
         }
     }
-    private static void browseForItems(MainGUI mainGUI, JFrame frame, List<File> itemsList) {
+    private static void browseForItems(MainGUI mainGUI, JFrame frame) {
         final JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
         fileChooser.setMultiSelectionEnabled(true);
         fileChooser.showOpenDialog(frame);
         File[] itemsArray = fileChooser.getSelectedFiles();
-        itemsList = Arrays.asList(itemsArray);
-        fillItemsList(mainGUI,itemsList);
+        List<File> itemsList = Arrays.asList(itemsArray);
+        fillItemsList(mainGUI, itemsList);
         frame.pack();
     }
     private static void fillFilesTable (JFrame frame, JTable jTable, JTextArea jTextArea) {
@@ -92,7 +90,7 @@ public class MainGUI {
         model.setValueAt("file",0,0);
         model.setValueAt("status",0,1);
 
-        List<String> itemsList = Arrays.asList(jTextArea.getText().split("\\n"));
+        String[] itemsList = jTextArea.getText().split("\\n");
         ArrayList<String> filesList = new ArrayList<>();
         for (String item : itemsList) {
             if (Files.isDirectory(Paths.get(item))) {
@@ -115,11 +113,7 @@ public class MainGUI {
         fitColumns(jTable);
         frame.pack();
 
-        Runnable getSubsThread = new Runnable() {
-            public void run() {
-                workOnFilesList(filesList,model, jTable);
-            }
-        };
+        Runnable getSubsThread = () -> workOnFilesList(filesList,model, jTable);
         new Thread(getSubsThread).start();
         //workOnFilesList(filesList);
 
@@ -168,7 +162,5 @@ public class MainGUI {
             e.printStackTrace();
         }
     }
-
-    static PropertiesClass properties = new PropertiesClass();
 
 }
