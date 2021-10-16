@@ -17,6 +17,7 @@ public class SettingsDialog extends JDialog {
 
 
     public SettingsDialog() {
+        Logger.logger.finer("initializing settings dialog");
         setContentPane(contentPane);
         setModal(true);
         getRootPane().setDefaultButton(buttonOK);
@@ -106,6 +107,7 @@ public class SettingsDialog extends JDialog {
     }
 
     private void readProperties() {
+        Logger.logger.finer("reading properties");
         PropertiesClass.readProperties();
         ktuvitUsernameField.setText(PropertiesClass.getKtuvitUsername());
         ktuvitPasswordField.setText(PropertiesClass.getKtuvitPassword());

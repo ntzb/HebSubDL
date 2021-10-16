@@ -18,6 +18,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Handler;
+
 
 public class MainGUI {
     private JPanel mainPanel;
@@ -32,6 +34,8 @@ public class MainGUI {
     private JButton settingsButton;
 
     public static void main(String[] args) {
+        Logger.initLogger();
+        Logger.logger.info("Starting app.");
         MainGUI mainGUI = new MainGUI();
         JFrame frame = new JFrame("HebSubDL");
         frame.setContentPane(mainGUI.mainPanel);
@@ -46,7 +50,7 @@ public class MainGUI {
                     frame.pack();
 
                 } catch (Exception ex) {
-                    ex.printStackTrace();
+                    Logger.logException(ex, "dragging files into window.");
                 }
             }
         });
@@ -61,6 +65,7 @@ public class MainGUI {
     }
 
     private static void fillItemsList(MainGUI mainGUI, List<File> itemsList) {
+        Logger.logger.finer("filling items list.");
         int itemCount=0;
         for (File item : itemsList) {
             if (FilesAndFolders.isDraggedItemAllowed(item)) {
@@ -71,6 +76,7 @@ public class MainGUI {
         }
     }
     private static void browseForItems(MainGUI mainGUI, JFrame frame) {
+        Logger.logger.finer("browsing for items");
         final JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
         fileChooser.setMultiSelectionEnabled(true);
@@ -81,6 +87,7 @@ public class MainGUI {
         frame.pack();
     }
     private static void fillFilesTable (JFrame frame, JTable jTable, JTextArea jTextArea) {
+        Logger.logger.finer("filling files table");
         DefaultTableModel model = (DefaultTableModel)jTable.getModel();
         model.setRowCount(0);
         model.setColumnCount(0);
@@ -97,7 +104,7 @@ public class MainGUI {
                 try {
                     FilesAndFolders.walkDir(item,filesList);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Logger.logException(e, "walking directories to find video files.");
                 }
             }
             else
@@ -119,6 +126,7 @@ public class MainGUI {
 
     }
     public static void fitColumns (JTable jTable) {
+        Logger.logger.finer("adjusting columns.");
         jTable.setAutoResizeMode( JTable.AUTO_RESIZE_OFF );
 
         for (int column = 0; column < jTable.getColumnCount(); column++)
@@ -148,6 +156,7 @@ public class MainGUI {
 
     }
     private static void workOnFilesList (ArrayList<String> filesList, DefaultTableModel model, JTable jTable) {
+        Logger.logger.finer("working on file list.");
         ArrayList<MediaFile> mediaFilesList = new ArrayList<>();
         for (String file:filesList) {
             //for the meantime, just print the file list
@@ -159,7 +168,7 @@ public class MainGUI {
         try {
             FindSubs.findSubs(mediaFilesList, model, jTable);
         } catch (IOException e) {
-            e.printStackTrace();
+            Logger.logException(e, "calling findSubs.");
         }
     }
 

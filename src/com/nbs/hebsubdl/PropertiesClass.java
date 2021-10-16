@@ -3,11 +3,13 @@ package com.nbs.hebsubdl;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.logging.Level;
 
 public class PropertiesClass {
     private static String ktuvitUsername;
     private static String ktuvitPassword;
     private static String langSuffix;
+    private static String logLevel;
 
     public static void writeProperties(String property, String value) {
         // for a single property
@@ -35,7 +37,7 @@ public class PropertiesClass {
             prop.store(output, null);
 
         } catch (IOException io) {
-            io.printStackTrace();
+            Logger.logException(io, "writing to properties file.");
         }
     }
     public static void writeProperties(HashMap<String, String> properties) {
@@ -65,7 +67,7 @@ public class PropertiesClass {
             prop.store(output, null);
 
         } catch (IOException io) {
-            io.printStackTrace();
+            Logger.logException(io, "writing to properties file.");
         }
     }
 
@@ -78,7 +80,7 @@ public class PropertiesClass {
             setLangSuffix(properties.getProperty("language.suffix"));
         }
         catch (IOException e) {
-            e.printStackTrace();
+            Logger.logException(e, "reading properties file");
         }
     }
 
@@ -104,5 +106,41 @@ public class PropertiesClass {
 
     public static void setLangSuffix(String langSuffix) {
         PropertiesClass.langSuffix = langSuffix;
+    }
+    public static String getLogLevel() {
+        return logLevel;
+    }
+
+    public static void setLogLevel(String logLevel) {
+        PropertiesClass.logLevel = logLevel;
+        if (logLevel != null) {
+            switch (logLevel.toLowerCase()) {
+                case "severe":
+                case "error":
+                    Logger.logger.setLevel(Level.SEVERE);
+                    break;
+                case "warning":
+                    Logger.logger.setLevel(Level.WARNING);
+                    Logger.logger.warning("log level will be set to WARNING");
+                    break;
+                case "info":
+                    Logger.logger.setLevel(Level.INFO);
+                    Logger.logger.info("log level will be set to INFO");
+                    break;
+                case "fine":
+                    Logger.logger.setLevel(Level.FINE);
+                    Logger.logger.info("log level will be set to FINE");
+                    break;
+                case "finer":
+                    Logger.logger.setLevel(Level.FINER);
+                    Logger.logger.info("log level will be set to FINER");
+                    break;
+                case "finest":
+                case "debug":
+                    Logger.logger.setLevel(Level.FINEST);
+                    Logger.logger.info("log level will be set to FINEST");
+                    break;
+            }
+        }
     }
 }

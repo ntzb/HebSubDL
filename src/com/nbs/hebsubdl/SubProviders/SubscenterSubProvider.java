@@ -2,6 +2,7 @@ package com.nbs.hebsubdl.SubProviders;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nbs.hebsubdl.Logger;
 import com.nbs.hebsubdl.MediaFile;
 import com.nbs.hebsubdl.PropertiesClass;
 import net.lingala.zip4j.ZipFile;
@@ -126,6 +127,7 @@ public class SubscenterSubProvider implements ISubProvider {
                 return response;
             }
         } catch (java.net.SocketTimeoutException e) {
+            Logger.logException(e, "timeout for request in SubsCenter");
             return "";
         }
     }
@@ -279,7 +281,7 @@ public class SubscenterSubProvider implements ISubProvider {
                 FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + '.'+ PropertiesClass.getLangSuffix()+'.' +
                 FilenameUtils.getExtension(extractedSubFile.toString()));
         if (!extractedSubFile.renameTo(newSubFile))
-            System.out.println("could not rename the file!");
+            Logger.logger.warning("could not rename the file!");
     }
 
     static class LoginJsonResponse {

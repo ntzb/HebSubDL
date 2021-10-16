@@ -1,6 +1,7 @@
 package com.nbs.hebsubdl.SubProviders;
 
 import com.nbs.hebsubdl.DbAccess;
+import com.nbs.hebsubdl.Logger;
 import com.nbs.hebsubdl.MediaFile;
 
 import com.nbs.hebsubdl.PropertiesClass;
@@ -34,17 +35,15 @@ public class KtuvitSubProvider implements ISubProvider {
         boolean ktuvitLoginValid = this.dbAccess.loginValid();
         try {
             if (!ktuvitLoginValid && !doLoginKtuvit()) {
-                System.out.println("failed in login");
+                Logger.logger.warning("could not log in to Ktuvit, check your credentials");
                 return ratingResponseArray;
             }
             String type = mediaFile.getEpisode().equals("0") ? "0" : "1";
             this.foundFilmID = initialSearch(type, mediaFile.getTitle(), mediaFile.getYear(), mediaFile.getImdbId());
             HashMap<String, String> foundSubs = subSearch(type, this.foundFilmID, mediaFile.getSeason(), mediaFile.getEpisode());
             ratingResponseArray = getTitleRating(foundSubs, titleWordsArray);
-
-            System.out.println("cool");
         } catch (Exception e) {
-            e.printStackTrace();
+            Logger.logException(e, "getting subtitles and ratings for Ktuvit.");
         }
         return ratingResponseArray;
     }
@@ -80,7 +79,7 @@ public class KtuvitSubProvider implements ISubProvider {
             if (status != 200 || !(boolean)obj.get("IsSuccess"))
                 return false;
         } catch (ParseException e) {
-            e.printStackTrace();
+            Logger.logException(e, "parsing login response from Ktuvit");
             return false;
         }
 
@@ -122,7 +121,7 @@ public class KtuvitSubProvider implements ISubProvider {
             }
             return con;
         } catch (IOException e) {
-            e.printStackTrace();
+            Logger.logException(e, "initializing http connection,");
             return null;
         }
     }
@@ -147,7 +146,7 @@ public class KtuvitSubProvider implements ISubProvider {
                 }
             }
         } catch (ParseException e) {
-            e.printStackTrace();
+            Logger.logException(e, "parsing JSON response for getting movie ID in Ktuvit");
             return null;
         }
         return null;
@@ -231,7 +230,7 @@ public class KtuvitSubProvider implements ISubProvider {
                 return null;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Logger.logException(e, "sending http request");
             return null;
         }
     }
@@ -308,7 +307,7 @@ public class KtuvitSubProvider implements ISubProvider {
             obj = (JSONObject) jsonParser.parse(obj.get("d").toString());
             downloadID = obj.get("DownloadIdentifier").toString();
         } catch (ParseException e) {
-            e.printStackTrace();
+            Logger.logException(e, "parsing response for download request in Ktuvit");
             return false;
         }
 
@@ -334,7 +333,7 @@ public class KtuvitSubProvider implements ISubProvider {
                 return false;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            Logger.logException(e, "downloading subtitle for Ktuvit");
         }
 
     return true;

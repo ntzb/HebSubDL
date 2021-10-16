@@ -11,7 +11,7 @@ public class DbAccess {
         try {
             this.conn = DriverManager.getConnection(url);
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            Logger.logException(e, "connecting to the DB.");
             return false;
         }
         return true;
@@ -35,7 +35,7 @@ public class DbAccess {
             // create a new table if not exists
             stmt.execute(getLoginSql);
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            Logger.logException(e, "creating statement for checking login.");
         }
 
         String sqlSelect = "SELECT validUntil, cookie FROM login";
@@ -56,7 +56,7 @@ public class DbAccess {
                 }
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            Logger.logException(e, "creating statement or executing query, for login.");
             return false;
         }
 
@@ -75,7 +75,7 @@ public class DbAccess {
             this.validUntil = validUntil;
             return true;
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            Logger.logException(e, "inserting new login to DB.");
             return false;
         }
     }

@@ -1,5 +1,6 @@
 package com.nbs.hebsubdl.SubProviders;
 
+import com.nbs.hebsubdl.Logger;
 import com.nbs.hebsubdl.MainGUI;
 import com.nbs.hebsubdl.MediaFile;
 import com.nbs.hebsubdl.PropertiesClass;
@@ -16,6 +17,7 @@ import java.util.*;
 
 public class FindSubs {
     public static void findSubs(ArrayList<MediaFile> mediaFileList, DefaultTableModel model, JTable jTable) throws IOException {
+        Logger.logger.info("will search subtitles for " + mediaFileList.size() + " items.");
         List<ISubProvider> providersList = new ArrayList<>(); //create a list of all providers to make iteration easy
         //WizdomSubProvider wizdomSubProvider = new WizdomSubProvider();
         //KtuvitSubProvider ktuvitSubProvider = new KtuvitSubProvider();
@@ -28,7 +30,9 @@ public class FindSubs {
         //providersList.add(subscenterSubProvider); - DEAD
         int count = 1;
         for (MediaFile mediaFile : mediaFileList) {
+            Logger.logger.info("searching subtitles for item: " + mediaFile.getFileName());
             if (subAlreadyExists(mediaFile)) {
+                Logger.logger.info("subtitle already exists!" + mediaFile.getFileName());
                 model.setValueAt("sub already exists", count, 1);
                 count++;
                 MainGUI.fitColumns(jTable);
@@ -69,13 +73,19 @@ public class FindSubs {
 
             String[] highestRatingSub = {"", ""};
             for (ISubProvider subProvider : providersList) {
+                String providerFullClassName = subProvider.getClass().toString().replace("SubProvider","");;
+                String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
+                Logger.logger.fine("searching provider: " + provider);
+
                 //iterate over list of providers and get the highest rating
                 String[] currentRatingSub = subProvider.getRating(mediaFile, titleWordsArray);
                 if (Integer.parseInt(currentRatingSub[1]) == maxTitleRating) {
                     //full match, let's finish up
                     model.setValueAt("downloading..", count, 1);
+                    Logger.logger.info("downloading sub from " + provider);
                     didDownload = subProvider.downloadSubFile(currentRatingSub[0], mediaFile);
                     if (didDownload) {
+                        Logger.logger.info("sub downloaded!");
                         model.setValueAt("success!", count, 1);
                         count++;
                         MainGUI.fitColumns(jTable);
@@ -85,6 +95,7 @@ public class FindSubs {
                     // no full match, get the score
                     SubProviderScore subProviderScore = new SubProviderScore(subProvider,Integer.parseInt(currentRatingSub[1]),currentRatingSub[0]);
                     subProviderList.add(subProviderScore);
+                    Logger.logger.fine("score for the subtitle from provider " + provider + "is " + subProviderScore.score);
 /*                    if (Integer.parseInt(currentRatingSub[1]) > maxRating) {
                         maxRating = Integer.parseInt(currentRatingSub[1]);
                         bestProvider = subProvider;
@@ -94,12 +105,19 @@ public class FindSubs {
             }
             Collections.sort(subProviderList,new DescendingScoreComparator());
             if (!didDownload) {
+                Logger.logger.fine("sorting sub options by score.");
                 //if (!highestRatingSub[0].trim().isEmpty()) {
                 if (!subProviderList.isEmpty() && subProviderList.get(0).score>0) {
                     //no direct match - let's go with closest one
                     //bestProvider.downloadSubFile(highestRatingSub[0], mediaFile);
+
+                    // try downloading from the first provider, if it fails, try the second one... etc.
                     for(SubProviderScore subProviderScore : subProviderList) {
+                        String providerFullClassName = subProviderScore.subProvider.getClass().toString().replace("SubProvider","");
+                        String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
+
                         if (subProviderScore.subProvider.downloadSubFile(subProviderScore.id,mediaFile)) {
+                            Logger.logger.fine("downloaded subtitle from " + provider + "!");
                             model.setValueAt("success!", count, 1);
                             MainGUI.fitColumns(jTable);
                             count++;
@@ -107,17 +125,20 @@ public class FindSubs {
                             break;
                         }
                         else {
+                            Logger.logger.warning("provider " + provider + "failed, trying the next one.");
                             model.setValueAt("failed provider, trying next one..", count, 1);
                             MainGUI.fitColumns(jTable);
                         }
                     }
                     if (!didDownload) {
-                        model.setValueAt("failed all providers, something wrong?", count, 1);
+                        Logger.logger.warning("all providers failed, something wrong?");
+                        model.setValueAt("all providers failed, something wrong?", count, 1);
                         MainGUI.fitColumns(jTable);
                     }
                 } else {
                     // no match at all
-                    model.setValueAt("failed - didn't find a match", count, 1);
+                    Logger.logger.warning("failed - didn't find a matching sub.");
+                    model.setValueAt("failed - didn't find a match.", count, 1);
                     MainGUI.fitColumns(jTable);
                     count++;
                 }

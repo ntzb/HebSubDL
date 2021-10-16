@@ -43,7 +43,7 @@ public class ImdbQuery {
                         mediaFile.setImdbId("");
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                Logger.logException(e, "sending IMDB query, or getting IMDB ID from response.");
             }
 
 

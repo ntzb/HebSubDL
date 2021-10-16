@@ -3,6 +3,7 @@ package com.nbs.hebsubdl.SubProviders;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nbs.hebsubdl.Logger;
 import com.nbs.hebsubdl.MediaFile;
 import com.nbs.hebsubdl.PropertiesClass;
 import net.lingala.zip4j.ZipFile;
@@ -101,10 +102,10 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                         FilenameUtils.removeExtension(mediaFile.getOriginalFileName())+'.'+ PropertiesClass.getLangSuffix()+'.'+
                         FilenameUtils.getExtension(extractedSubFile.toString()));
                 if (!extractedSubFile.renameTo(newSubFile))
-                    System.out.println("could not rename the file!");
-                fos.close();;
+                    Logger.logger.warning("could not rename the file");
+                fos.close();
                 if (!subZip.delete())
-                    System.out.println("can't delete the sub zip file!");
+                    Logger.logger.warning("can't delete the sub zip file!");
             }
         }
         return true;
