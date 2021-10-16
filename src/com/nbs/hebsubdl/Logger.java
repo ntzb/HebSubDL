@@ -39,7 +39,7 @@ public class Logger {
         StringWriter sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));
         String exceptionAsString = sw.toString();
-        logger.severe("caught exception while " + action + "printing stack trace:");
+        logger.severe("caught exception while " + action + ", printing stack trace:");
         logger.severe(exceptionAsString);
     }
 }

@@ -221,7 +221,7 @@ public class MainGUI {
             Logger.logger.finer("system tray supported.");
             tray = SystemTray.getSystemTray();
 
-            Image image = Toolkit.getDefaultToolkit().getImage("resources\\sub_icon.png");
+            Image image = Toolkit.getDefaultToolkit().getImage(MainGUI.class.getResource("/resources/sub_icon.png"));
 
             // set right click options - open and exit
             PopupMenu popup = new PopupMenu();
@@ -267,7 +267,7 @@ public class MainGUI {
                     Logger.logger.finest("Tray icon removed.");
                 }
             });
-            frame.setIconImage(Toolkit.getDefaultToolkit().getImage("resources\\sub_icon.png"));
+            frame.setIconImage(Toolkit.getDefaultToolkit().getImage(MainGUI.class.getResource("/resources/sub_icon.png")));
         }
     }
 }

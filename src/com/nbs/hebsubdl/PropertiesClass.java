@@ -15,9 +15,8 @@ public class PropertiesClass {
     public static void writeProperties(String property, String value) {
         // for a single property
         FileOutputStream fileOut = null;
-        FileInputStream fileIn = null;
+        FileInputStream fileIn;
         try {
-            //OutputStream output = new FileOutputStream("config.properties")}) {
             Properties prop = new Properties();
             File propFile = new File("config.properties");
             fileIn = new FileInputStream(propFile);
@@ -61,9 +60,8 @@ public class PropertiesClass {
     public static void writeProperties(HashMap<String, String> properties) {
         // for multiple properties
         FileOutputStream fileOut = null;
-        FileInputStream fileIn = null;
+        FileInputStream fileIn;
         try {
-            //OutputStream output = new FileOutputStream("config.properties")}) {
             Properties prop = new Properties();
             File propFile = new File("config.properties");
             fileIn = new FileInputStream(propFile);
@@ -107,9 +105,16 @@ public class PropertiesClass {
     }
 
     public static void readProperties() {
-        try (InputStream inputStream = new FileInputStream("config.properties")) {
+        //try (InputStream inputStream = new FileInputStream("config.properties")) {
+        FileInputStream fileIn = null;
+        try {
+            Properties prop = new Properties();
+            File propFile = new File("config.properties");
+            if (!propFile.exists())
+                propFile.createNewFile();
+            fileIn = new FileInputStream(propFile);
             Properties properties = new Properties();
-            properties.load(inputStream);
+            properties.load(fileIn);
             setKtuvitPassword(properties.getProperty("ktuvit.password"));
             setKtuvitUsername(properties.getProperty("ktuvit.username"));
             setLangSuffix(properties.getProperty("language.suffix"));
@@ -118,6 +123,12 @@ public class PropertiesClass {
         }
         catch (IOException e) {
             Logger.logException(e, "reading properties file");
+        } finally {
+            try {
+                fileIn.close();
+            } catch (IOException ex) {
+                Logger.logException(ex, "failed closing properties file.");
+            }
         }
     }
 
