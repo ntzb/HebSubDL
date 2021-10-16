@@ -166,7 +166,12 @@ public class MainGUI {
         }
         ImdbQuery.getImdbID(mediaFilesList);
         try {
-            FindSubs.findSubs(mediaFilesList, model, jTable);
+            if (!mediaFilesList.isEmpty()) {
+                Logger.logger.fine("starting subtitles search.");
+                FindSubs.findSubs(mediaFilesList, model, jTable);
+            }
+            else
+                Logger.logger.info("empty file list - nothing to do.");
         } catch (IOException e) {
             Logger.logException(e, "calling findSubs.");
         }

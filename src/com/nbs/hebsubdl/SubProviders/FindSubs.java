@@ -103,11 +103,11 @@ public class FindSubs {
                     }*/
                 }
             }
-            Collections.sort(subProviderList,new DescendingScoreComparator());
-            if (!didDownload) {
+            if (!didDownload && !subProviderList.isEmpty()) {
                 Logger.logger.fine("sorting sub options by score.");
+                Collections.sort(subProviderList,new DescendingScoreComparator());
                 //if (!highestRatingSub[0].trim().isEmpty()) {
-                if (!subProviderList.isEmpty() && subProviderList.get(0).score>0) {
+                if (subProviderList.get(0).score>0) {
                     //no direct match - let's go with closest one
                     //bestProvider.downloadSubFile(highestRatingSub[0], mediaFile);
 
