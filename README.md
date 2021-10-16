@@ -26,8 +26,8 @@ for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.
 
 To Do:
 
-~~work with Git~~
-~~recheck providers and fix as needed~~
+-~~work with Git~~
+-~~recheck providers and fix as needed~~
 add database with simple table - file path, status (downloaded, not found, empty (not searched?)), ~~login cookie time validity~~
 ~~add log file with proper logger and logging levels~~
 add timeouts to read drive and look for missing subtitles: scanner (https://docs.oracle.com/javase/tutorial/essential/io/notification.html)
