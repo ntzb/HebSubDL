@@ -1,0 +1,20 @@
+package com.nbs.hebsubdl;
+
+class ImdbJsonArray {
+    private String l;
+    private String id;
+
+    public String getL() {
+        return l;
+    }
+    public void setL(String l) {
+        this.l = l;
+    }
+    public String getId() {
+        return id;
+    }
+    public void setId(String id) {
+        this.id = id;
+    }
+}
+
