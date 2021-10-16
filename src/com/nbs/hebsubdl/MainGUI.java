@@ -6,13 +6,12 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import java.awt.Component;
+import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDropEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,7 +41,8 @@ public class MainGUI {
         JFrame frame = new JFrame("HebSubDL");
         frame.setContentPane(mainGUI.mainPanel);
 
-        handleExitCommand(frame);
+        handleNonTrayExitCommand(frame);
+        addTraySupport(frame);
 
         mainGUI.pathToLoadTA.setDropTarget(new DropTarget() {
             public synchronized void drop(DropTargetDropEvent evt) {
@@ -180,30 +180,94 @@ public class MainGUI {
         }
     }
 
-    private static void handleExitCommand(JFrame frame) {
+    private static boolean showExitConfirmation(JFrame frame) {
+        int result = JOptionPane.showConfirmDialog(
+                frame,
+                "Are you sure you want to exit the application?",
+                "Exit Application",
+                JOptionPane.YES_NO_OPTION);
+
+        if (result == JOptionPane.YES_OPTION) {
+            // we want to exit - cleanup handlers
+            for (Handler h : Logger.logger.getHandlers())
+                h.close();
+            // set back the exit on close property so it will actually exit.
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            return true;
+        }
+        return false;
+    }
+
+    private static void handleNonTrayExitCommand(JFrame frame) {
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.addWindowListener( new WindowAdapter()
         {
             public void windowClosing(WindowEvent e)
             {
                 JFrame frame = (JFrame)e.getSource();
-
-                int result = JOptionPane.showConfirmDialog(
-                        frame,
-                        "Are you sure you want to exit the application?",
-                        "Exit Application",
-                        JOptionPane.YES_NO_OPTION);
-
-                if (result == JOptionPane.YES_OPTION) {
-                    // we want to exit - cleanup handlers
-                    for(Handler h : Logger.logger.getHandlers())
-                    {
-                        h.close();
-                    }
-                    // set back the exit on close property so it will actually exit.
-                    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-                }
+                showExitConfirmation(frame);
             }
         });
+    }
+
+    private static void addTraySupport(JFrame frame) {
+        TrayIcon trayIcon;
+        SystemTray tray;
+
+        if (!SystemTray.isSupported())
+            Logger.logger.finer("system tray not supported.");
+
+        else {
+            Logger.logger.finer("system tray supported.");
+            tray = SystemTray.getSystemTray();
+
+            Image image = Toolkit.getDefaultToolkit().getImage("resources\\sub_icon.png");
+
+            // set right click options - open and exit
+            PopupMenu popup = new PopupMenu();
+            MenuItem defaultItem = new MenuItem("Open");
+            defaultItem.addActionListener(e -> {
+                frame.setVisible(true);
+                frame.setExtendedState(JFrame.NORMAL);
+            });
+            popup.add(defaultItem);
+
+            defaultItem = new MenuItem("Exit");
+            defaultItem.addActionListener(e -> {
+                Logger.logger.finer("exiting.");
+                if (showExitConfirmation(frame))
+                    System.exit(0);
+            });
+            popup.add(defaultItem);
+
+            trayIcon = new TrayIcon(image, "HebSubDL", popup);
+            trayIcon.setImageAutoSize(true);
+
+            trayIcon.addActionListener(e -> {
+                frame.setVisible(true);
+                frame.setExtendedState(JFrame.NORMAL);
+            });
+
+            SystemTray finalTray = tray;
+            TrayIcon finalTrayIcon = trayIcon;
+            frame.addWindowStateListener(e -> {
+                if (e.getNewState() == Frame.ICONIFIED || e.getNewState() == 7) {
+                    // 7 is ICONIFIED + MAXIMIZED_BOTH
+                    try {
+                        finalTray.add(finalTrayIcon);
+                        frame.setVisible(false);
+                        Logger.logger.finest("added to SystemTray.");
+                    } catch (AWTException ex) {
+                        Logger.logger.warning("unable to add to tray.");
+                    }
+                }
+                if (e.getNewState() == Frame.NORMAL || e.getNewState() == Frame.MAXIMIZED_BOTH) {
+                    finalTray.remove(finalTrayIcon);
+                    frame.setVisible(true);
+                    Logger.logger.finest("Tray icon removed.");
+                }
+            });
+            frame.setIconImage(Toolkit.getDefaultToolkit().getImage("resources\\sub_icon.png"));
+        }
     }
 }
