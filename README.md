@@ -5,6 +5,8 @@ Supports:
 2. Ktuvit
 3. OpenSubtitles
 
+#
+
 for Ktuvit - you need to use your email, and the encoded password as per these instructions (thanks CaTz):
 1. Open [ktuvit.me](https://www.ktuvit.me) in the browser
 2. Open [developer tools](https://developers.google.com/web/tools/chrome-devtools/open)  (in Windows <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>c</kbd>
@@ -20,11 +22,12 @@ console.log(`Now past it in the addon's settings at the Encrypted password field
 
 for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent
 
+#
 
 To Do:
 
-- work with Git
-- recheck providers and fix as needed
+~~- work with Git~~
+~~- recheck providers and fix as needed~~
 - add database with simple table - file path, status (downloaded, not found, empty (not searched?)), login cookie time validity
 - add log file with proper logger and logging levels
 - add timeouts to read drive and look for missing subtitles: scanner (https://docs.oracle.com/javase/tutorial/essential/io/notification.html)
