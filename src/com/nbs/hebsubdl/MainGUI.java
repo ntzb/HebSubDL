@@ -11,6 +11,8 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDropEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,7 +41,8 @@ public class MainGUI {
         MainGUI mainGUI = new MainGUI();
         JFrame frame = new JFrame("HebSubDL");
         frame.setContentPane(mainGUI.mainPanel);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        handleExitCommand(frame);
 
         mainGUI.pathToLoadTA.setDropTarget(new DropTarget() {
             public synchronized void drop(DropTargetDropEvent evt) {
@@ -177,4 +180,30 @@ public class MainGUI {
         }
     }
 
+    private static void handleExitCommand(JFrame frame) {
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        frame.addWindowListener( new WindowAdapter()
+        {
+            public void windowClosing(WindowEvent e)
+            {
+                JFrame frame = (JFrame)e.getSource();
+
+                int result = JOptionPane.showConfirmDialog(
+                        frame,
+                        "Are you sure you want to exit the application?",
+                        "Exit Application",
+                        JOptionPane.YES_NO_OPTION);
+
+                if (result == JOptionPane.YES_OPTION) {
+                    // we want to exit - cleanup handlers
+                    for(Handler h : Logger.logger.getHandlers())
+                    {
+                        h.close();
+                    }
+                    // set back the exit on close property so it will actually exit.
+                    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                }
+            }
+        });
+    }
 }
