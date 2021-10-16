@@ -62,7 +62,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     @Override
     public String getQueryJsonResponse(URL url) throws IOException {
         URLConnection urlConnection = url.openConnection();
-        urlConnection.setRequestProperty("User-Agent","jointdogg");
+        urlConnection.setRequestProperty("User-Agent",PropertiesClass.getOpenSubtitlesUserAgent());
         InputStream inputStream = urlConnection.getInputStream();
         String response = "";
         try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));) { //try with resources, so they will be closed when we are done.

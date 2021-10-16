@@ -8,12 +8,14 @@ public class SettingsDialog extends JDialog {
     private JPanel contentPane;
     private JButton buttonOK;
     private JButton buttonCancel;
-    private JLabel ktuvitPasswordLabel;
-    private JLabel ktuvitUsernameLabel;
     private JTextField ktuvitUsernameField;
     private JPasswordField ktuvitPasswordField;
     private JTextField LanguageSuffixField;
+    private JTextField openSubtitlesUAField;
+    private JLabel ktuvitPasswordLabel;
+    private JLabel ktuvitUsernameLabel;
     private JLabel languageSuffixLabel;
+    private JLabel openSubtitlesUALabel;
 
 
     public SettingsDialog() {
@@ -55,6 +57,7 @@ public class SettingsDialog extends JDialog {
         String ktuvitUsername = ktuvitUsernameField.getText().trim();
         String ktuvitPassword = new String(ktuvitPasswordField.getPassword());
         String langSuffix = LanguageSuffixField.getText().trim();
+        String openSubtitlesUA = openSubtitlesUAField.getText().trim();
 
         HashMap<String, String> properties = new HashMap<>();
         if (!ktuvitUsername.isEmpty())
@@ -63,6 +66,8 @@ public class SettingsDialog extends JDialog {
             properties.put("ktuvitPassword", ktuvitPassword);
         if (!langSuffix.isEmpty())
             properties.put("langSuffix", langSuffix);
+        if (!openSubtitlesUA.isEmpty())
+            properties.put("openSubtitlesUserAgent", openSubtitlesUA);
         PropertiesClass.writeProperties(properties);
 
         /*try {
@@ -112,6 +117,7 @@ public class SettingsDialog extends JDialog {
         ktuvitUsernameField.setText(PropertiesClass.getKtuvitUsername());
         ktuvitPasswordField.setText(PropertiesClass.getKtuvitPassword());
         LanguageSuffixField.setText(PropertiesClass.getLangSuffix());
+        openSubtitlesUAField.setText(PropertiesClass.getOpenSubtitlesUserAgent());
     }
 
 }

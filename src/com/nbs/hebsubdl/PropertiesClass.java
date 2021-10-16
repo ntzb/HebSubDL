@@ -10,12 +10,19 @@ public class PropertiesClass {
     private static String ktuvitPassword;
     private static String langSuffix;
     private static String logLevel;
+    private static String openSubtitlesUserAgent;
 
     public static void writeProperties(String property, String value) {
         // for a single property
-        try (OutputStream output = new FileOutputStream("config.properties")) {
-
+        FileOutputStream fileOut = null;
+        FileInputStream fileIn = null;
+        try {
+            //OutputStream output = new FileOutputStream("config.properties")}) {
             Properties prop = new Properties();
+            File propFile = new File("config.properties");
+            fileIn = new FileInputStream(propFile);
+            prop.load(fileIn);
+
             switch (property) {
                 case "ktuvitUsername":
                     setKtuvitUsername(value);
@@ -29,21 +36,38 @@ public class PropertiesClass {
                     setLangSuffix(value);
                     prop.setProperty("language.suffix", getLangSuffix());
                     break;
+                case "openSubtitlesUserAgent":
+                    setOpenSubtitlesUserAgent(value);
+                    prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
+                    break;
             }
             // set the property value
             prop.setProperty(property, value);
 
             // save properties to project root folder
-            prop.store(output, null);
+            fileOut = new FileOutputStream(propFile);
+            prop.store(fileOut, null);
 
         } catch (IOException io) {
             Logger.logException(io, "writing to properties file.");
+        } finally {
+            try {
+                fileOut.close();
+            } catch (IOException ex) {
+                Logger.logException(ex, "failed closing properties file.");
+            }
         }
     }
     public static void writeProperties(HashMap<String, String> properties) {
         // for multiple properties
-        try (OutputStream output = new FileOutputStream("config.properties")) {
+        FileOutputStream fileOut = null;
+        FileInputStream fileIn = null;
+        try {
+            //OutputStream output = new FileOutputStream("config.properties")}) {
             Properties prop = new Properties();
+            File propFile = new File("config.properties");
+            fileIn = new FileInputStream(propFile);
+            prop.load(fileIn);
 
             // set the properties values
             for (String key : properties.keySet()) {
@@ -60,14 +84,25 @@ public class PropertiesClass {
                         setLangSuffix(properties.get(key));
                         prop.setProperty("language.suffix", getLangSuffix());
                         break;
+                    case "openSubtitlesUserAgent":
+                        setOpenSubtitlesUserAgent(properties.get(key));
+                        prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
+                        break;
                 }
             }
 
             // save properties to project root folder
-            prop.store(output, null);
+            fileOut = new FileOutputStream(propFile);
+            prop.store(fileOut, null);
 
         } catch (IOException io) {
             Logger.logException(io, "writing to properties file.");
+        } finally {
+            try {
+                fileOut.close();
+            } catch (IOException ex) {
+                Logger.logException(ex, "failed closing properties file.");
+            }
         }
     }
 
@@ -78,6 +113,8 @@ public class PropertiesClass {
             setKtuvitPassword(properties.getProperty("ktuvit.password"));
             setKtuvitUsername(properties.getProperty("ktuvit.username"));
             setLangSuffix(properties.getProperty("language.suffix"));
+            setOpenSubtitlesUserAgent(properties.getProperty("opensubtitles.useragnet"));
+            setLogLevel(properties.getProperty("log.level"));
         }
         catch (IOException e) {
             Logger.logException(e, "reading properties file");
@@ -107,6 +144,7 @@ public class PropertiesClass {
     public static void setLangSuffix(String langSuffix) {
         PropertiesClass.langSuffix = langSuffix;
     }
+
     public static String getLogLevel() {
         return logLevel;
     }
@@ -142,5 +180,13 @@ public class PropertiesClass {
                     break;
             }
         }
+    }
+
+    public static String getOpenSubtitlesUserAgent() {
+        return openSubtitlesUserAgent;
+    }
+
+    public static void setOpenSubtitlesUserAgent(String openSubtitlesUserAgent) {
+        PropertiesClass.openSubtitlesUserAgent = openSubtitlesUserAgent;
     }
 }
