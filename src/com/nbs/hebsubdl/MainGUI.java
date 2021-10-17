@@ -74,9 +74,11 @@ public class MainGUI {
     }
 
     private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {
-        List<String> dirs = Arrays.stream(PropertiesClass.getWatchDirectories().split(",")).collect(Collectors.toList());
+        String watchDirs = PropertiesClass.getWatchDirectories();
+        List<String> dirs = Arrays.stream(watchDirs.split(",")).collect(Collectors.toList());
         try {
-            new WatchDir(dirs, true, frame, mainGUI.filesTable).processEvents();
+            if (!watchDirs.isBlank() && dirs.size() > 0)
+                new WatchDir(dirs, true, frame, mainGUI.filesTable).processEvents();
         } catch (NoSuchFileException e) {
             Logger.logSevereAndExitWithError(String.format("directory asked to watch doesn't exists: %s, " +
                     "did you forget to use double backslash in the config file?", e.getMessage()));
