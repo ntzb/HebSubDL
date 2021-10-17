@@ -43,4 +43,22 @@ public class Logger {
         logger.severe("caught exception while " + action + ", printing stack trace:");
         logger.severe(exceptionAsString);
     }
+
+    public static void logExceptionAndExitWithError(Exception e, String action) {
+        StringWriter sw = new StringWriter();
+        e.printStackTrace(new PrintWriter(sw));
+        String exceptionAsString = sw.toString();
+        logger.severe("caught exception while " + action + ", printing stack trace:");
+        logger.severe(exceptionAsString);
+        for (Handler h : Logger.logger.getHandlers())
+            h.close();
+        System.exit(-1);
+    }
+
+    public static void logSevereAndExitWithError(String logMsg) {
+        logger.severe(logMsg);
+        for (Handler h : Logger.logger.getHandlers())
+            h.close();
+        System.exit(-1);
+    }
 }
