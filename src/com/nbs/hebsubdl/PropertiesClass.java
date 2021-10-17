@@ -12,6 +12,7 @@ public class PropertiesClass {
     private static String logLevel;
     private static String openSubtitlesUserAgent;
     private static String watchDirectories;
+    private static String watchIgnoreKeywords;
 
     public static void writeProperties(String property, String value) {
         // for a single property
@@ -43,6 +44,10 @@ public class PropertiesClass {
                 case "watchDirectories":
                     setWatchDirectories(value);
                     prop.setProperty("watch.directories", getWatchDirectories());
+                    break;
+                case "watchIgnoreKeywords":
+                    setWatchIgnoreKeywords(value);
+                    prop.setProperty("watch.ignorekeywords", getWatchIgnoreKeywords());
                     break;
             }
             // set the property value
@@ -95,6 +100,10 @@ public class PropertiesClass {
                         setWatchDirectories(properties.get(key));
                         prop.setProperty("watch.directories", getWatchDirectories());
                         break;
+                    case "watchIgnoreKeywords":
+                        setWatchIgnoreKeywords(properties.get(key));
+                        prop.setProperty("watch.ignorekeywords", getWatchIgnoreKeywords());
+                        break;
                 }
             }
 
@@ -130,6 +139,7 @@ public class PropertiesClass {
             setOpenSubtitlesUserAgent(properties.getProperty("opensubtitles.useragnet"));
             setLogLevel(properties.getProperty("log.level"));
             setWatchDirectories(properties.getProperty("watch.directories"));
+            setWatchIgnoreKeywords(properties.getProperty("watch.ignorekeywords"));
         }
         catch (IOException e) {
             Logger.logException(e, "reading properties file");
@@ -217,5 +227,13 @@ public class PropertiesClass {
 
     public static void setWatchDirectories(String watchDirectories) {
         PropertiesClass.watchDirectories = watchDirectories;
+    }
+
+    public static String getWatchIgnoreKeywords() {
+        return watchIgnoreKeywords;
+    }
+
+    public static void setWatchIgnoreKeywords(String watchIgnoreKeywords) {
+        PropertiesClass.watchIgnoreKeywords = watchIgnoreKeywords;
     }
 }

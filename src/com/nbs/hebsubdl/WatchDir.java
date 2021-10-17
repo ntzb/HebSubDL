@@ -124,7 +124,7 @@ public class WatchDir {
                 Path child = dir.resolve(name);
 
                 // filter video files only, throw out other types or dirs
-                if (!Files.isDirectory(child, NOFOLLOW_LINKS) && !FilenameUtils.isExtension(child.toString(), FilesAndFolders.allowedExtensions))
+                if (!Files.isDirectory(child, NOFOLLOW_LINKS) && needToIgnoreFile(child))
                     continue;
 
                 // do something with the event
@@ -188,6 +188,29 @@ public class WatchDir {
         fileList.clear();
         JTextArea jTextArea = new JTextArea(str);
         MainGUI.fillFilesTable(jFrame, jTable, jTextArea);
+    }
+
+    private boolean needToIgnoreFile(Path path) {
+        String filename = path.toString();
+
+        // see if extension is not allowed
+        boolean allowed_extension = FilenameUtils.isExtension(filename, FilesAndFolders.allowedExtensions);
+        if (!allowed_extension) {
+            Logger.logger.finest(String.format("ignoring file %s because its extension is not allowed", filename));
+            return true;
+        }
+
+        // see if name contains keywords to ignore
+        String keywordsToIgnore = PropertiesClass.getWatchIgnoreKeywords();
+        if (keywordsToIgnore == null || keywordsToIgnore.isBlank())
+            return false;
+        for (String keyword : keywordsToIgnore.split(",")) {
+            if (filename.contains(keyword)) {
+                Logger.logger.finest(String.format("ignoring file %s because it has a keyword set to be ignored", filename));
+                return true;
+            }
+        }
+        return false;
     }
 
 }
