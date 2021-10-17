@@ -15,11 +15,14 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Handler;
+import java.util.stream.Collectors;
 
 
 public class MainGUI {
@@ -65,6 +68,21 @@ public class MainGUI {
 
         frame.pack();
         frame.setVisible(true);
+
+        setupDirWatcher(mainGUI, frame);
+
+    }
+
+    private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {
+        List<String> dirs = Arrays.stream(PropertiesClass.getWatchDirectories().split(",")).collect(Collectors.toList());
+        try {
+            new WatchDir(dirs, true, frame, mainGUI.filesTable).processEvents();
+        } catch (NoSuchFileException e) {
+            Logger.logSevereAndExitWithError(String.format("directory asked to watch doesn't exists: %s, " +
+                    "did you forget to use double backslash in the config file?", e.getMessage()));
+        } catch (IOException e) {
+            Logger.logException(e, "when registering directories to watch");
+        }
     }
 
     private static void fillItemsList(MainGUI mainGUI, List<File> itemsList) {
@@ -89,8 +107,8 @@ public class MainGUI {
         fillItemsList(mainGUI, itemsList);
         frame.pack();
     }
-    private static void fillFilesTable (JFrame frame, JTable jTable, JTextArea jTextArea) {
-        Logger.logger.finer("filling files table");
+    public static void fillFilesTable (JFrame frame, JTable jTable, JTextArea jTextArea) {
+        Logger.logger.finer(String.format("filling files table with %s", jTextArea.getText()));
         DefaultTableModel model = (DefaultTableModel)jTable.getModel();
         model.setRowCount(0);
         model.setColumnCount(0);

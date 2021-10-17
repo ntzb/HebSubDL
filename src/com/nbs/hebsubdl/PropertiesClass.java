@@ -11,6 +11,7 @@ public class PropertiesClass {
     private static String langSuffix;
     private static String logLevel;
     private static String openSubtitlesUserAgent;
+    private static String watchDirectories;
 
     public static void writeProperties(String property, String value) {
         // for a single property
@@ -38,6 +39,10 @@ public class PropertiesClass {
                 case "openSubtitlesUserAgent":
                     setOpenSubtitlesUserAgent(value);
                     prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
+                    break;
+                case "watchDirectories":
+                    setWatchDirectories(value);
+                    prop.setProperty("watch.directories", getWatchDirectories());
                     break;
             }
             // set the property value
@@ -86,6 +91,10 @@ public class PropertiesClass {
                         setOpenSubtitlesUserAgent(properties.get(key));
                         prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
                         break;
+                    case "watchDirectories":
+                        setWatchDirectories(properties.get(key));
+                        prop.setProperty("watch.directories", getWatchDirectories());
+                        break;
                 }
             }
 
@@ -120,6 +129,7 @@ public class PropertiesClass {
             setLangSuffix(properties.getProperty("language.suffix"));
             setOpenSubtitlesUserAgent(properties.getProperty("opensubtitles.useragnet"));
             setLogLevel(properties.getProperty("log.level"));
+            setWatchDirectories(properties.getProperty("watch.directories"));
         }
         catch (IOException e) {
             Logger.logException(e, "reading properties file");
@@ -199,5 +209,13 @@ public class PropertiesClass {
 
     public static void setOpenSubtitlesUserAgent(String openSubtitlesUserAgent) {
         PropertiesClass.openSubtitlesUserAgent = openSubtitlesUserAgent;
+    }
+
+    public static String getWatchDirectories() {
+        return watchDirectories;
+    }
+
+    public static void setWatchDirectories(String watchDirectories) {
+        PropertiesClass.watchDirectories = watchDirectories;
     }
 }
