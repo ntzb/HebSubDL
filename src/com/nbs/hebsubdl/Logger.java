@@ -35,6 +35,7 @@ public class Logger {
             e.printStackTrace();
         }
     }
+
     public static void logException(Exception e, String action) {
         StringWriter sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));

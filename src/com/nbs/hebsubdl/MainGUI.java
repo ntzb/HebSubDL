@@ -70,7 +70,6 @@ public class MainGUI {
         frame.setVisible(true);
 
         setupDirWatcher(mainGUI, frame);
-
     }
 
     private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {
@@ -241,6 +240,7 @@ public class MainGUI {
             Logger.logger.finer("system tray supported.");
             tray = SystemTray.getSystemTray();
 
+            // set tray icon
             Image image = Toolkit.getDefaultToolkit().getImage(MainGUI.class.getResource("/resources/sub_icon.png"));
 
             // set right click options - open and exit
@@ -260,14 +260,15 @@ public class MainGUI {
             });
             popup.add(defaultItem);
 
+            // double click action
             trayIcon = new TrayIcon(image, "HebSubDL", popup);
             trayIcon.setImageAutoSize(true);
-
             trayIcon.addActionListener(e -> {
                 frame.setVisible(true);
                 frame.setExtendedState(JFrame.NORMAL);
             });
 
+            // actual minimize/restore action
             SystemTray finalTray = tray;
             TrayIcon finalTrayIcon = trayIcon;
             frame.addWindowStateListener(e -> {
@@ -287,6 +288,7 @@ public class MainGUI {
                     Logger.logger.finest("Tray icon removed.");
                 }
             });
+            // set app icon
             frame.setIconImage(Toolkit.getDefaultToolkit().getImage(MainGUI.class.getResource("/resources/sub_icon.png")));
         }
     }
