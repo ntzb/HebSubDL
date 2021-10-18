@@ -22,7 +22,8 @@ console.log(`Now past it in the addon's settings at the Encrypted password field
 
 #
 
-for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent
+~~for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent~~
+no longer the case, you can login with both (developer useragent, or username(email)/password
 
 #
 
