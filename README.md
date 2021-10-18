@@ -28,7 +28,7 @@ for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.
 
 To Do:
 
-- ~~work with Git,~~ maven/gradle
+- ~~work with Git, maven/gradle~~
 - ~~recheck providers and fix as needed~~
 - add database with simple table - file path, status (downloaded, not found, empty (not searched?)), ~~login cookie time validity~~
 - ~~add log file with proper logger and logging levels~~
@@ -36,5 +36,5 @@ To Do:
 - ~~add to config.properties: user/pass/api keys for providers, ignore keywords for scanner, file paths for scanner~~
 - ~~minimize to tray~~
 - (?) expose api to be called from kodi/others
-- use opensubtitles.com, or allow a username/password method instead of developer api method.
+- ~~use opensubtitles.com, or allow a username/password method instead of developer api method.~~
 
