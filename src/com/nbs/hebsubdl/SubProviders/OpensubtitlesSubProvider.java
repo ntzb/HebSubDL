@@ -3,12 +3,16 @@ package com.nbs.hebsubdl.SubProviders;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.wtekiela.opensub4j.api.OpenSubtitlesClient;
+import com.github.wtekiela.opensub4j.impl.OpenSubtitlesClientImpl;
+import com.github.wtekiela.opensub4j.response.*;
 import com.nbs.hebsubdl.Logger;
 import com.nbs.hebsubdl.MediaFile;
 import com.nbs.hebsubdl.PropertiesClass;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.FileHeader;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.xmlrpc.XmlRpcException;
 
 import java.io.*;
 import java.net.MalformedURLException;
@@ -20,10 +24,22 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.zip.GZIPInputStream;
 
 public class OpensubtitlesSubProvider implements ISubProvider {
     private URL queryURL;
     private String language;
+    // alternate login is the username (email)/password login, which is different to the regular login because it
+    // doesn't allow searching by imdbId together with season/series, instead relying on title+seasons+episode.
+    boolean alternativeLogin = true;
+    String token;
+
+    OpensubtitlesSubProvider() {
+        this.alternativeLogin = (!PropertiesClass.getOpenSubtitlesUsername().trim().isEmpty() &&
+                !PropertiesClass.getOpenSubtitlesPassword().trim().isEmpty());
+        Logger.logger.fine(alternativeLogin ? "using OpenSubtitles username (email)/password login." : "using OpenSubtitles regular login.");
+    }
 
     public String getLanguage() {
         return language;
@@ -47,14 +63,14 @@ public class OpensubtitlesSubProvider implements ISubProvider {
         StringBuilder url = new StringBuilder("https://rest.opensubtitles.org/search/"+
                 "sublanguageid-"+getLanguage()+"/");
         if (!mediaFile.getImdbId().trim().isEmpty())
-            url.append("imdbid-"+mediaFile.getImdbId().substring(2,9));
+            url.append("imdbid-").append(mediaFile.getImdbId(), 2, 9);
         else
-            url.append("tag-"+mediaFile.getFileName().toLowerCase());
+            url.append("tag-").append(mediaFile.getFileName().toLowerCase());
         if(!mediaFile.getEpisode().equals("0")) {
             DecimalFormat formatter = new DecimalFormat("0");
             String formattedSeason = formatter.format(Integer.parseInt(mediaFile.getSeason()));
             String formattedEpisode = formatter.format(Integer.parseInt(mediaFile.getEpisode()));
-            url.append("/season-"+formattedSeason+"/"+"episode-"+formattedEpisode);
+            url.append("/season-").append(formattedSeason).append("/").append("episode-").append(formattedEpisode);
         }
         this.queryURL = new URL(url.toString());
     }
@@ -62,10 +78,10 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     @Override
     public String getQueryJsonResponse(URL url) throws IOException {
         URLConnection urlConnection = url.openConnection();
-        urlConnection.setRequestProperty("User-Agent",PropertiesClass.getOpenSubtitlesUserAgent());
+        urlConnection.setRequestProperty("User-Agent", PropertiesClass.getOpenSubtitlesUserAgent());
         InputStream inputStream = urlConnection.getInputStream();
         String response = "";
-        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));) { //try with resources, so they will be closed when we are done.
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) { //try with resources, so they will be closed when we are done.
             char[] readBuffer = new char[2048];
             int responseSize = bufferedReader.read(readBuffer); //let's read and see the response size
             while (responseSize > 0) {
@@ -78,36 +94,64 @@ public class OpensubtitlesSubProvider implements ISubProvider {
 
     @Override
     public boolean downloadSubFile(String subId, MediaFile mediaFile) throws IOException {
+        URLConnection con = (new URL(subId)).openConnection();
         File subZip = new File(FilenameUtils.removeExtension(mediaFile.getPathName()+"\\"+
-                mediaFile.getFileName())+".zip");
-        URL url = new URL(subId);
-        try (ReadableByteChannel rbc = Channels.newChannel(url.openStream()); //try with resources
+                mediaFile.getFileName())+ (alternativeLogin ? ".gz" : ".zip"));
+
+        try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); //try with resources
              FileOutputStream fos = new FileOutputStream(subZip)) {
             long bytesTransferred = fos.getChannel().transferFrom(rbc, 0, 1000000);
             if (bytesTransferred == 0)
                 return false;
             else {
-                StringBuilder subFileInZip = new StringBuilder();
-                final String[] allowedSubExtensions = {"srt", "sub"};
-                List<FileHeader> fileHeaders = new ZipFile(subZip).getFileHeaders();
-                for (FileHeader fileHeader: fileHeaders) {
-                    if (FilenameUtils.isExtension(fileHeader.getFileName(),allowedSubExtensions)) {
-                        subFileInZip.append(fileHeader.getFileName());
-                        break;
+                // in the alternate login, we have a .gz file, and we first need to get the real extension
+                if (alternativeLogin) {
+                    Logger.logger.finer("searching for the extension in the header for the file download http request.");
+                    // assume .srt and hope we can get it from the headers
+                    String extension = ".srt";
+                    String fieldValue = con.getHeaderField("Content-Disposition");
+                    String wantedField = "filename=\"";
+                    if (fieldValue != null && fieldValue.contains(wantedField)) {
+                        String filename = fieldValue.substring(fieldValue.indexOf(wantedField) + wantedField.length(), fieldValue.length()-1);
+                        extension = "."+FilenameUtils.getExtension(FilenameUtils.removeExtension(filename));
+                        Logger.logger.finer(String.format("found extension %s.", extension));
                     }
+                    String outputSubFileName = mediaFile.getPathName() + "\\" +
+                            FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix() + extension;
+
+                    try (GZIPInputStream gis = new GZIPInputStream(new FileInputStream(subZip));
+                         FileOutputStream fosGz = new FileOutputStream(outputSubFileName)) {
+                        // copy GZIPInputStream to FileOutputStream
+                        byte[] buffer = new byte[1024];
+                        int len;
+                        while ((len = gis.read(buffer)) > 0)
+                            fosGz.write(buffer, 0, len);
+                    }
+                } else {
+                    StringBuilder subFileInZip = new StringBuilder();
+                    final String[] allowedSubExtensions = {"srt", "sub"};
+                    List<FileHeader> fileHeaders = new ZipFile(subZip).getFileHeaders();
+                    for (FileHeader fileHeader : fileHeaders) {
+                        if (FilenameUtils.isExtension(fileHeader.getFileName(), allowedSubExtensions)) {
+                            subFileInZip.append(fileHeader.getFileName());
+                            break;
+                        }
+                    }
+                    new ZipFile(subZip).extractFile(subFileInZip.toString(), mediaFile.getPathName());
+                    File extractedSubFile = new File(mediaFile.getPathName() + "\\" + subFileInZip);
+                    File newSubFile = new File(mediaFile.getPathName() + "\\" +
+                            FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix() + '.' +
+                            FilenameUtils.getExtension(extractedSubFile.toString()));
+                    if (!extractedSubFile.renameTo(newSubFile))
+                        Logger.logger.warning("could not rename the file");
+                    fos.close();
+                    //if (!subZip.delete())
+                    //    Logger.logger.warning("can't delete the sub zip file!");
                 }
-                new ZipFile(subZip).extractFile(subFileInZip.toString(), mediaFile.getPathName());
-                File extractedSubFile = new File(mediaFile.getPathName()+"\\"+subFileInZip.toString());
-                File newSubFile = new File(mediaFile.getPathName()+"\\"+
-                        FilenameUtils.removeExtension(mediaFile.getOriginalFileName())+'.'+ PropertiesClass.getLangSuffix()+'.'+
-                        FilenameUtils.getExtension(extractedSubFile.toString()));
-                if (!extractedSubFile.renameTo(newSubFile))
-                    Logger.logger.warning("could not rename the file");
-                fos.close();
-                if (!subZip.delete())
-                    Logger.logger.warning("can't delete the sub zip file!");
             }
         }
+        if (!subZip.delete())
+            Logger.logger.warning("can't delete the sub zip file!");
         return true;
     }
 
@@ -118,12 +162,67 @@ public class OpensubtitlesSubProvider implements ISubProvider {
         downloadSubFile(getTitleRating(queryJsonResponses,mediaFile.getFileName()),mediaFile);
     }*/
 
+    private OpenSubtitlesClient doAlternativeLogin() {
+        try {
+            URL serverUrl = new URL("https", "api.opensubtitles.org", 443, "/xml-rpc");
+            OpenSubtitlesClient osClient = new OpenSubtitlesClientImpl(serverUrl);
+            // logging in
+            LoginResponse loginResponse = (LoginResponse) osClient.login("jointdogg@gmail.com", "asdasd", "en", "XBMC_Subtitles_Login_v5.0.16");
+
+            // checking login status
+            assert loginResponse.getStatus() == ResponseStatus.OK;
+            assert osClient.isLoggedIn();
+            return osClient;
+
+        } catch (XmlRpcException | MalformedURLException e) {
+            Logger.logException(e, "logging in to OpenSubtitles with the alternate method");
+            return null;
+        }
+    }
+
+    public List<SubtitleInfo> doAlternateSearch(MediaFile mediaFile, OpenSubtitlesClient osClient) {
+        setLanguage("heb");
+        ListResponse<SubtitleInfo> response;
+        try {
+            // tvshow - search by title, season, episode only
+            if (!mediaFile.getEpisode().equals("0")) {
+                response = osClient.searchSubtitles(getLanguage(), mediaFile.getTitle(), mediaFile.getSeason(), mediaFile.getEpisode());
+            }
+            // movie - we can search by imdb or filename
+            else if (!mediaFile.getImdbId().trim().isEmpty()) {
+                response = osClient.searchSubtitles(getLanguage(), mediaFile.getImdbId().trim());
+            } else {
+                response = osClient.searchSubtitles("eng", new File(mediaFile.getFileName()));
+            }
+            Optional<List<SubtitleInfo>> subtitles = response.getData();
+
+            if (subtitles.isPresent()) {
+                return subtitles.get();
+            }
+        } catch (XmlRpcException | IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     @Override
     public String[] getRating(MediaFile mediaFile, String[] titleWordsArray) throws IOException {
-        generateQueryURL(mediaFile);
-        QueryJsonResponse[] queryJsonResponses = mapJsonResponse(getQueryJsonResponse(getQueryURL()));
-        String[] ratingResponseArray=getTitleRating(queryJsonResponses,titleWordsArray);
-        return ratingResponseArray;
+        if (alternativeLogin) {
+            OpenSubtitlesClient osClient = doAlternativeLogin();
+            List<SubtitleInfo> subList = doAlternateSearch(mediaFile, osClient);
+            if (subList != null) {
+                String[] ratingResponseArray = getTitleRating(subList, titleWordsArray);
+                return ratingResponseArray;
+            }
+            else
+                return null;
+        }
+        else {
+            generateQueryURL(mediaFile);
+            QueryJsonResponse[] queryJsonResponses = mapJsonResponse(getQueryJsonResponse(getQueryURL()));
+            String[] ratingResponseArray = getTitleRating(queryJsonResponses, titleWordsArray);
+            return ratingResponseArray;
+        }
     }
 
     private QueryJsonResponse[] mapJsonResponse (String response) throws IOException {
@@ -131,6 +230,28 @@ public class OpensubtitlesSubProvider implements ISubProvider {
         ObjectMapper objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         return objectMapper.readValue(response,QueryJsonResponse[].class);
     }
+
+    private String[] getTitleRating(List<SubtitleInfo> subList, String[] titleWordsArray) {
+        int maxRating = 0;
+        String highestRatingLink ="";
+        for (SubtitleInfo subInfo : subList) {
+            String testedTitle = subInfo.getFileName().toLowerCase().trim();
+            String[] testedTitleWordArray = testedTitle.replaceAll("_"," ").replaceAll
+                    ("\\."," ").replaceAll("-"," ").split(" ");
+            int rating = 0;
+            for (String word:titleWordsArray) {
+                if (Arrays.asList(testedTitleWordArray).contains(word))
+                    rating++;
+            }
+            if (rating > maxRating) {
+                maxRating = rating;
+                highestRatingLink = subInfo.getDownloadLink();
+            }
+        }
+        String[] titleRatingResponse={highestRatingLink,String.valueOf(maxRating)};
+        return titleRatingResponse;
+    }
+
     private String[] getTitleRating(QueryJsonResponse[] queryResponseArray, String[] titleWordsArray) {
         int maxRating = 0;
         String highestRatingLink ="";

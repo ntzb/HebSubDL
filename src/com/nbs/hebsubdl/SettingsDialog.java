@@ -11,11 +11,13 @@ public class SettingsDialog extends JDialog {
     private JTextField ktuvitUsernameField;
     private JPasswordField ktuvitPasswordField;
     private JTextField LanguageSuffixField;
-    private JTextField openSubtitlesUAField;
+    private JTextField openSubtitlesUsernameField;
     private JLabel ktuvitPasswordLabel;
     private JLabel ktuvitUsernameLabel;
     private JLabel languageSuffixLabel;
-    private JLabel openSubtitlesUALabel;
+    private JLabel openSubtitlesUsernameLabel;
+    private JLabel openSubtitlesPasswordLabel;
+    private JPasswordField openSubtitlesPasswordField;
 
 
     public SettingsDialog() {
@@ -57,17 +59,19 @@ public class SettingsDialog extends JDialog {
         String ktuvitUsername = ktuvitUsernameField.getText().trim();
         String ktuvitPassword = new String(ktuvitPasswordField.getPassword());
         String langSuffix = LanguageSuffixField.getText().trim();
-        String openSubtitlesUA = openSubtitlesUAField.getText().trim();
+        String openSubtitlesUsername = openSubtitlesUsernameField.getText().trim();
+        String openSubtitlesPassword = new String(openSubtitlesPasswordField.getPassword());
 
         HashMap<String, String> properties = new HashMap<>();
-        if (!ktuvitUsername.isEmpty())
-            properties.put("ktuvitUsername", ktuvitUsername);
-        if (!ktuvitPassword.isEmpty())
-            properties.put("ktuvitPassword", ktuvitPassword);
-        if (!langSuffix.isEmpty())
-            properties.put("langSuffix", langSuffix);
-        if (!openSubtitlesUA.isEmpty())
-            properties.put("openSubtitlesUserAgent", openSubtitlesUA);
+        //if (!ktuvitUsername.isEmpty())
+        properties.put("ktuvitUsername", ktuvitUsername);
+        //if (!ktuvitPassword.isEmpty())
+        properties.put("ktuvitPassword", ktuvitPassword);
+        //if (!langSuffix.isEmpty())
+        //if (!openSubtitlesUsername.isEmpty())
+        properties.put("openSubtitlesUsername", openSubtitlesUsername);
+        //if (!openSubtitlesPassword.isEmpty())
+        properties.put("openSubtitlesPassword", openSubtitlesPassword);
         PropertiesClass.writeProperties(properties);
 
         /*try {
@@ -117,7 +121,8 @@ public class SettingsDialog extends JDialog {
         ktuvitUsernameField.setText(PropertiesClass.getKtuvitUsername());
         ktuvitPasswordField.setText(PropertiesClass.getKtuvitPassword());
         LanguageSuffixField.setText(PropertiesClass.getLangSuffix());
-        openSubtitlesUAField.setText(PropertiesClass.getOpenSubtitlesUserAgent());
+        openSubtitlesUsernameField.setText(PropertiesClass.getOpenSubtitlesUsername());
+        openSubtitlesPasswordField.setText(PropertiesClass.getOpenSubtitlesPassword());
     }
 
 }

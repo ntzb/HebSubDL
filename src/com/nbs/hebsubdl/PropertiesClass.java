@@ -11,6 +11,8 @@ public class PropertiesClass {
     private static String langSuffix;
     private static String logLevel;
     private static String openSubtitlesUserAgent;
+    private static String openSubtitlesUsername;
+    private static String openSubtitlesPassword;
     private static String watchDirectories;
     private static String watchIgnoreKeywords;
 
@@ -40,6 +42,14 @@ public class PropertiesClass {
                 case "openSubtitlesUserAgent":
                     setOpenSubtitlesUserAgent(value);
                     prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
+                    break;
+                case "openSubtitlesUsername":
+                    setOpenSubtitlesUsername(value);
+                    prop.setProperty("opensubtitles.username", getOpenSubtitlesUsername());
+                    break;
+                case "openSubtitlesPassword":
+                    setOpenSubtitlesPassword(value);
+                    prop.setProperty("opensubtitles.password", getOpenSubtitlesPassword());
                     break;
                 case "watchDirectories":
                     setWatchDirectories(value);
@@ -96,6 +106,14 @@ public class PropertiesClass {
                         setOpenSubtitlesUserAgent(properties.get(key));
                         prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
                         break;
+                    case "openSubtitlesUsername":
+                        setOpenSubtitlesUsername(properties.get(key));
+                        prop.setProperty("opensubtitles.username", getOpenSubtitlesUsername());
+                        break;
+                    case "openSubtitlesPassword":
+                        setOpenSubtitlesPassword(properties.get(key));
+                        prop.setProperty("opensubtitles.password", getOpenSubtitlesPassword());
+                        break;
                     case "watchDirectories":
                         setWatchDirectories(properties.get(key));
                         prop.setProperty("watch.directories", getWatchDirectories());
@@ -133,15 +151,20 @@ public class PropertiesClass {
             fileIn = new FileInputStream(propFile);
             Properties properties = new Properties();
             properties.load(fileIn);
+
             setKtuvitPassword(properties.getProperty("ktuvit.password"));
             setKtuvitUsername(properties.getProperty("ktuvit.username"));
             setLangSuffix(properties.getProperty("language.suffix"));
-            setOpenSubtitlesUserAgent(properties.getProperty("opensubtitles.useragnet"));
+            // open subtitles useragent - if it's empty, use "TemporaryUserAgent" and decide later between this login and alternate login
+            String useragent = properties.getProperty("opensubtitles.useragnet");
+            setOpenSubtitlesUserAgent((useragent == null || useragent.trim().isEmpty()) ? "TemporaryUserAgent" : useragent);
+            setOpenSubtitlesUsername(properties.getProperty("opensubtitles.username"));
+            setOpenSubtitlesPassword(properties.getProperty("opensubtitles.password"));
             setLogLevel(properties.getProperty("log.level"));
             setWatchDirectories(properties.getProperty("watch.directories"));
             setWatchIgnoreKeywords(properties.getProperty("watch.ignorekeywords"));
         }
-        catch (IOException e) {
+        catch (Exception e) {
             Logger.logException(e, "reading properties file");
         } finally {
             try {
@@ -235,5 +258,21 @@ public class PropertiesClass {
 
     public static void setWatchIgnoreKeywords(String watchIgnoreKeywords) {
         PropertiesClass.watchIgnoreKeywords = watchIgnoreKeywords;
+    }
+
+    public static String getOpenSubtitlesUsername() {
+        return openSubtitlesUsername;
+    }
+
+    public static void setOpenSubtitlesUsername(String openSubtitlesUsername) {
+        PropertiesClass.openSubtitlesUsername = openSubtitlesUsername;
+    }
+
+    public static String getOpenSubtitlesPassword() {
+        return openSubtitlesPassword;
+    }
+
+    public static void setOpenSubtitlesPassword(String openSubtitlesPassword) {
+        PropertiesClass.openSubtitlesPassword = openSubtitlesPassword;
     }
 }
