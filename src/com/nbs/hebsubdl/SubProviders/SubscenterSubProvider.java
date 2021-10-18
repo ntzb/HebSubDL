@@ -278,7 +278,7 @@ public class SubscenterSubProvider implements ISubProvider {
         new ZipFile(subZip).extractFile(subFileInZip.toString(), mediaFile.getPathName());
         File extractedSubFile = new File(mediaFile.getPathName() + "\\" + subFileInZip);
         File newSubFile = new File(mediaFile.getPathName() + "\\" +
-                FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + '.'+ PropertiesClass.getLangSuffix()+'.' +
+                FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix()+'.' +
                 FilenameUtils.getExtension(extractedSubFile.toString()));
         if (!extractedSubFile.renameTo(newSubFile))
             Logger.logger.warning("could not rename the file!");

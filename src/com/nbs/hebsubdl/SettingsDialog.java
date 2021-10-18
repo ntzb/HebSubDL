@@ -68,6 +68,7 @@ public class SettingsDialog extends JDialog {
         //if (!ktuvitPassword.isEmpty())
         properties.put("ktuvitPassword", ktuvitPassword);
         //if (!langSuffix.isEmpty())
+        properties.put("langSuffix", (langSuffix.isEmpty() || langSuffix.startsWith(".")) ? langSuffix : "."+langSuffix);
         //if (!openSubtitlesUsername.isEmpty())
         properties.put("openSubtitlesUsername", openSubtitlesUsername);
         //if (!openSubtitlesPassword.isEmpty())

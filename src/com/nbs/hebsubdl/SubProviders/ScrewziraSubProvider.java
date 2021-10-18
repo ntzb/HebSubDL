@@ -126,7 +126,7 @@ public class ScrewziraSubProvider implements ISubProvider {
         String fileName = urlConnection.getHeaderField("Content-Disposition");
         fileName = fileName.substring(constToTrim.length(),fileName.length());
         File filePath = new File(mediaFile.getPathName()+"\\"+
-                FilenameUtils.removeExtension(mediaFile.getOriginalFileName())+'.'+ PropertiesClass.getLangSuffix()+'.'+
+                FilenameUtils.removeExtension(mediaFile.getOriginalFileName())+PropertiesClass.getLangSuffix()+'.'+
                 FilenameUtils.getExtension(fileName.toString()));
         long bytesTransferred = 0;
         try (ReadableByteChannel rbc = Channels.newChannel(urlConnection.getInputStream()); //try with resources

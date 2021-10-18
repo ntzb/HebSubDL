@@ -26,6 +26,9 @@ import java.util.zip.GZIPInputStream;
 
 public class KtuvitSubProvider implements ISubProvider {
 
+    private DbAccess dbAccess;
+    private String foundFilmID;
+
     @Override
     public String[] getRating (MediaFile mediaFile, String[] titleWordsArray) {
         String[] ratingResponseArray={"",""};
@@ -319,7 +322,7 @@ public class KtuvitSubProvider implements ISubProvider {
 
             String fileName = con.getHeaderField("Content-Disposition");
             File filePath = new File(mediaFile.getPathName() + "\\" +
-                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + '.' + PropertiesClass.getLangSuffix() + '.' +
+                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix() + '.' +
                     FilenameUtils.getExtension(fileName));
             long bytesTransferred = 0;
             try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); //try with resources
@@ -356,7 +359,4 @@ public class KtuvitSubProvider implements ISubProvider {
     public String getQueryJsonResponse(URL url) {
         return null;
     }
-
-    private DbAccess dbAccess;
-    private String foundFilmID;
 }

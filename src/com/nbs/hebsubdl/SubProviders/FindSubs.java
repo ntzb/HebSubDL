@@ -92,7 +92,7 @@ public class FindSubs {
                     // no full match, get the score
                     SubProviderScore subProviderScore = new SubProviderScore(subProvider,Integer.parseInt(currentRatingSub[1]),currentRatingSub[0]);
                     subProviderList.add(subProviderScore);
-                    Logger.logger.fine("score for the subtitle from provider " + provider + "is " + subProviderScore.score);
+                    Logger.logger.fine("score for the subtitle from provider " + provider + " is " + subProviderScore.score);
 /*                    if (Integer.parseInt(currentRatingSub[1]) > maxRating) {
                         maxRating = Integer.parseInt(currentRatingSub[1]);
                         bestProvider = subProvider;
@@ -147,7 +147,7 @@ public class FindSubs {
         final String[] allowedSubExtensions = {"srt", "sub"};
         for (String extension : allowedSubExtensions) {
             String subFile = mediaFile.getPathName() + "\\" +
-                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + '.'+ PropertiesClass.getLangSuffix()+'.' + extension;
+                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix()+'.' + extension;
             File newSubFile = new File(subFile);
             if (newSubFile.exists())
                 return true;
