@@ -74,9 +74,13 @@ public class MainGUI {
 
     private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {
         String watchDirs = PropertiesClass.getWatchDirectories();
+        if (watchDirs == null || watchDirs.trim().isEmpty()) {
+            Logger.logger.fine("got empty watch directory - will not watch.");
+            return;
+        }
         List<String> dirs = Arrays.stream(watchDirs.split(",")).collect(Collectors.toList());
         try {
-            if (!watchDirs.isBlank() && dirs.size() > 0)
+            if (dirs.size() > 0)
                 new WatchDir(dirs, true, frame, mainGUI.filesTable).processEvents();
         } catch (NoSuchFileException e) {
             Logger.logSevereAndExitWithError(String.format("directory asked to watch doesn't exists: %s, " +
