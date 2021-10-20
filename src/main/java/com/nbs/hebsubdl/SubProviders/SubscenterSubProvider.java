@@ -25,6 +25,12 @@ public class SubscenterSubProvider implements ISubProvider {
     private final String BASE_URL = "http://www.cinemast.org/he/cinemast/api/";
     private URL queryUrl;
     private StringBuilder requestJson = new StringBuilder();
+    String chosenSubName;
+
+    @Override
+    public String getChosenSubName() {
+        return chosenSubName;
+    }
 
     @Override
     public URL getQueryURL() {
@@ -205,6 +211,7 @@ public class SubscenterSubProvider implements ISubProvider {
                 if (rating > maxRating) {
                     maxRating = rating;
                     highestRatingLink = subItem.version + ',' + subItem.key + ',' + subItem.id;
+                    chosenSubName = subItem.version;
                 }
             }
         }

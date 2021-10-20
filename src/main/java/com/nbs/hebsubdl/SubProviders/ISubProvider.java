@@ -7,6 +7,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 public interface ISubProvider {
+    String getChosenSubName();
     URL getQueryURL();
     void setQueryURL(URL queryURL);
 

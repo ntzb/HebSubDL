@@ -28,6 +28,12 @@ public class KtuvitSubProvider implements ISubProvider {
 
     private DbAccess dbAccess;
     private String foundFilmID;
+    private String chosenSubName;
+
+    @Override
+    public String getChosenSubName() {
+        return chosenSubName;
+    }
 
     @Override
     public String[] getRating (MediaFile mediaFile, String[] titleWordsArray) {
@@ -285,6 +291,7 @@ public class KtuvitSubProvider implements ISubProvider {
             if (rating > maxRating) {
                 maxRating = rating;
                 highestRatingLink = foundSubs.get(sub);
+                chosenSubName = sub;
             }
         }
         return new String[]{highestRatingLink,String.valueOf(maxRating)};

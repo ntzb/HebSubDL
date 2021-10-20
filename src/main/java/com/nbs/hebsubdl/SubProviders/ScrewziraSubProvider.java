@@ -18,6 +18,12 @@ import java.util.Arrays;
 public class ScrewziraSubProvider implements ISubProvider {
     private URL queryURL;
     private StringBuilder requestJson = new StringBuilder();
+    String chosenSubName;
+
+    @Override
+    public String getChosenSubName() {
+        return chosenSubName;
+    }
 
     @Override
     public URL getQueryURL() {
@@ -107,6 +113,7 @@ public class ScrewziraSubProvider implements ISubProvider {
             if (rating > maxRating) {
                 maxRating = rating;
                 QueryResponseArray.maxRating = response.Identifier;
+                chosenSubName = response.SubtitleName;
             }
         }
         return maxRating;

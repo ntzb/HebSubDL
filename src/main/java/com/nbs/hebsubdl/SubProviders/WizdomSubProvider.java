@@ -21,6 +21,12 @@ import java.util.List;
 
 public class WizdomSubProvider implements ISubProvider {
     private URL queryURL;
+    String chosenSubName;
+
+    @Override
+    public String getChosenSubName() {
+        return chosenSubName;
+    }
 
     @Override
     public URL getQueryURL() {
@@ -105,6 +111,7 @@ public class WizdomSubProvider implements ISubProvider {
     private int getTitleRating(String[] titleWordArray, String matchedTitle) {
         String[] testedTitleWordArray = matchedTitle.toLowerCase().replaceAll("_", " ").replaceAll
                 ("\\.", " ").replaceAll("-", " ").split(" ");
+        chosenSubName = matchedTitle;
         int rating = 0;
         for (String word : titleWordArray) {
             if (Arrays.asList(testedTitleWordArray).contains(word))

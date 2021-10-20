@@ -75,7 +75,7 @@ public class FindSubs {
                 if (Integer.parseInt(currentRatingSub[1]) == maxTitleRating) {
                     //full match, let's finish up
                     model.setValueAt("downloading..", count, 1);
-                    Logger.logger.info("downloading sub from " + provider);
+                    Logger.logger.info(String.format("downloading sub from %s (%s)",provider, subProvider.getChosenSubName()));
                     didDownload = subProvider.downloadSubFile(currentRatingSub[0], mediaFile);
                     if (didDownload) {
                         Logger.logger.info("sub downloaded!");
@@ -110,7 +110,7 @@ public class FindSubs {
                         String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
 
                         if (subProviderScore.subProvider.downloadSubFile(subProviderScore.id,mediaFile)) {
-                            Logger.logger.fine("downloaded subtitle from " + provider + "!");
+                            Logger.logger.info(String.format("downloaded sub from %s (%s)!",provider, subProviderScore.subProvider.getChosenSubName()));
                             model.setValueAt("success!", count, 1);
                             MainGUI.fitColumns(jTable);
                             count++;
