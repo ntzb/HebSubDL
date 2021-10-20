@@ -2,8 +2,8 @@
 
 Supports:
 1. Wizdom
-2. Ktuvit
-3. OpenSubtitles
+2. Ktuvit (needs login information - see below)
+3. OpenSubtitles (needs either login information, or a 'developer' useragent)
 
 #
 
@@ -23,7 +23,8 @@ console.log(`Now paste it in the addons settings at the "Encrypted password fiel
 #
 
 ~~for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent~~
-no longer the case, you can login with both (developer useragent, or username(email)/password
+
+no longer the case, you can login with both (developer useragent, or username(email)/password)
 
 #
 
