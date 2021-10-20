@@ -13,7 +13,6 @@ import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.FileHeader;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.xmlrpc.XmlRpcException;
-
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -24,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 
@@ -33,12 +33,24 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     // alternate login is the username (email)/password login, which is different to the regular login because it
     // doesn't allow searching by imdbId together with season/series, instead relying on title+seasons+episode.
     boolean alternativeLogin = true;
-    String token;
+    OpenSubtitlesClient osClient;
+    String chosenSubName;
+    String chosenSubFormat;
+
+    @Override
+    public String getChosenSubName() {
+        return chosenSubName;
+    }
 
     OpensubtitlesSubProvider() {
         this.alternativeLogin = (!PropertiesClass.getOpenSubtitlesUsername().trim().isEmpty() &&
                 !PropertiesClass.getOpenSubtitlesPassword().trim().isEmpty());
-        Logger.logger.fine(alternativeLogin ? "using OpenSubtitles username (email)/password login." : "using OpenSubtitles regular login.");
+        if (alternativeLogin) {
+            Logger.logger.fine("using OpenSubtitles username (email)/password login.");
+            this.osClient = doAlternativeLogin();
+        }
+        else
+            Logger.logger.fine("using OpenSubtitles regular login.");
     }
 
     public String getLanguage() {
@@ -118,7 +130,9 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                 return false;
             else {
                 // in the alternate login, we have a .gz file, and we first need to get the real extension
-                if (alternativeLogin) {
+                // edit: the API also gives us ZIP download, so we can just use that. keep code to use later if needed
+                if (false && alternativeLogin) {
+                    // TODO: if planning to use this later, just switch to chosenSubFormat instead of finding it from filename.
                     Logger.logger.finer("searching for the extension in the header for the file download http request.");
                     // assume .srt and hope we can get it from the headers
                     String extension = ".srt";
@@ -220,11 +234,10 @@ public class OpensubtitlesSubProvider implements ISubProvider {
 
     @Override
     public String[] getRating(MediaFile mediaFile, String[] titleWordsArray) throws IOException {
-        if (alternativeLogin) {
-            OpenSubtitlesClient osClient = doAlternativeLogin();
+        if (alternativeLogin && osClient!= null) {
             List<SubtitleInfo> subList = doAlternateSearch(mediaFile, osClient);
             if (subList != null) {
-                String[] ratingResponseArray = getTitleRating(subList, titleWordsArray);
+                String[] ratingResponseArray = getTitleRating(subList, titleWordsArray, mediaFile);
                 return ratingResponseArray;
             }
             else
@@ -244,7 +257,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
         return objectMapper.readValue(response,QueryJsonResponse[].class);
     }
 
-    private String[] getTitleRating(List<SubtitleInfo> subList, String[] titleWordsArray) {
+    private String[] getTitleRating(List<SubtitleInfo> subList, String[] titleWordsArray, MediaFile mediaFile) {
         int maxRating = 0;
         String highestRatingLink ="";
         for (SubtitleInfo subInfo : subList) {
@@ -252,13 +265,21 @@ public class OpensubtitlesSubProvider implements ISubProvider {
             String[] testedTitleWordArray = testedTitle.replaceAll("_"," ").replaceAll
                     ("\\."," ").replaceAll("-"," ").split(" ");
             int rating = 0;
+            // added bonus for matched series imdb id
+            if (!mediaFile.getImdbId().isEmpty() && mediaFile.getImdbId().contains(subInfo.getSeriesImdbId()))
+                rating = rating+3;
+            // added bonus for non hearing impaired subs if looking for English subs
+            if (this.language.equals("eng") && testedTitle.contains("nonhi"))
+                rating++;
             for (String word:titleWordsArray) {
                 if (Arrays.asList(testedTitleWordArray).contains(word))
                     rating++;
             }
             if (rating > maxRating) {
                 maxRating = rating;
-                highestRatingLink = subInfo.getDownloadLink();
+                highestRatingLink = subInfo.getZipDownloadLink();
+                chosenSubName = subInfo.getFileName();
+                chosenSubFormat = subInfo.getFormat();
             }
         }
         String[] titleRatingResponse={highestRatingLink,String.valueOf(maxRating)};
@@ -280,6 +301,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
             if (rating > maxRating) {
                 maxRating = rating;
                 highestRatingLink = queryJsonResponse.ZipDownloadLink;
+                chosenSubName = queryJsonResponse.MovieReleaseName;
             }
         }
         String[] titleRatingResponse={highestRatingLink,String.valueOf(maxRating)};
