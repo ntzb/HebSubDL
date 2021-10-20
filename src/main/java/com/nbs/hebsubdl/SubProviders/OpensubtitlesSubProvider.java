@@ -45,7 +45,20 @@ public class OpensubtitlesSubProvider implements ISubProvider {
         return language;
     }
     public void setLanguage(String language) {
-        this.language = language;
+        if (language.length() != 2) {
+            Logger.logger.warning(String.format("expected 2 letter language code, but got %d letter language (code): %s," +
+                            "will default to Hebrew.", language.length(), language));
+            this.language = "heb";
+        }
+        else {
+            Locale locale = new Locale(language);
+            try {
+                this.language = locale.getISO3Language();
+            } catch (java.util.MissingResourceException exception) {
+                Logger.logger.warning(String.format("invalid language code provided (%s), will default to Hebrew.", language));
+                this.language = "heb";
+            }
+        }
     }
 
     @Override
@@ -59,7 +72,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
 
     @Override
     public void generateQueryURL(MediaFile mediaFile) throws MalformedURLException {
-        setLanguage("heb");
+        setLanguage(PropertiesClass.getLangSuffix().replace(".",""));
         StringBuilder url = new StringBuilder("https://rest.opensubtitles.org/search/"+
                 "sublanguageid-"+getLanguage()+"/");
         if (!mediaFile.getImdbId().trim().isEmpty())
@@ -181,7 +194,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     }
 
     public List<SubtitleInfo> doAlternateSearch(MediaFile mediaFile, OpenSubtitlesClient osClient) {
-        setLanguage("heb");
+        setLanguage(PropertiesClass.getLangSuffix().replace(".",""));
         ListResponse<SubtitleInfo> response;
         try {
             // tvshow - search by title, season, episode only

@@ -182,7 +182,7 @@ public class SettingsDialog extends JDialog {
         ktuvitPasswordField = new JPasswordField();
         panel3.add(ktuvitPasswordField, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         LanguageSuffixField = new JTextField();
-        LanguageSuffixField.setToolTipText("can be \"he\", \"heb\", or whatever you'd like");
+        LanguageSuffixField.setToolTipText("can only be 2 letter (iso 639-1) language code (e.g. \"he\")");
         panel3.add(LanguageSuffixField, new GridConstraints(5, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         openSubtitlesUsernameLabel = new JLabel();
         openSubtitlesUsernameLabel.setText("OpenSubtitles username:");
@@ -193,7 +193,7 @@ public class SettingsDialog extends JDialog {
         panel3.add(openSubtitlesUsernameField, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         languageSuffixLabel = new JLabel();
         languageSuffixLabel.setText("Language suffix:");
-        languageSuffixLabel.setToolTipText("can be \"he\", \"heb\", or whatever you'd like");
+        languageSuffixLabel.setToolTipText("can only be 2 letter (iso 639-1) language code (e.g. \"he\")");
         panel3.add(languageSuffixLabel, new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         openSubtitlesPasswordLabel = new JLabel();
         openSubtitlesPasswordLabel.setText("OpenSubtitles password:");
@@ -208,4 +208,5 @@ public class SettingsDialog extends JDialog {
     public JComponent $$$getRootComponent$$$() {
         return contentPane;
     }
+
 }

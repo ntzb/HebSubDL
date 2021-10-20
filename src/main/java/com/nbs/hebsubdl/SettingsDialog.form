@@ -108,7 +108,7 @@
               </grid>
             </constraints>
             <properties>
-              <toolTipText value="can be &quot;he&quot;, &quot;heb&quot;, or whatever you'd like"/>
+              <toolTipText value="can only be 2 letter (iso 639-1) language code (e.g. &quot;he&quot;)"/>
             </properties>
           </component>
           <component id="6335e" class="javax.swing.JLabel" binding="openSubtitlesUsernameLabel">
@@ -136,7 +136,7 @@
             </constraints>
             <properties>
               <text value="Language suffix:"/>
-              <toolTipText value="can be &quot;he&quot;, &quot;heb&quot;, or whatever you'd like"/>
+              <toolTipText value="can only be 2 letter (iso 639-1) language code (e.g. &quot;he&quot;)"/>
             </properties>
           </component>
           <component id="c96f" class="javax.swing.JLabel" binding="openSubtitlesPasswordLabel">
