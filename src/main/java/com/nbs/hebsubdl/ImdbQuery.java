@@ -32,7 +32,23 @@ public class ImdbQuery {
                     continue;
                 }
                 else {
-                    String currentImdbId = response.getD()[0].getId();
+                    String currentImdbId = null;
+                    for (ImdbJson.ImdbJsonArray item : response.getD()) {
+                        int score = 0;
+                        String[] imdbTitle = item.getL().toLowerCase().replace(":","").split(" ");
+                        for (String word : imdbTitle) {
+                            if (mediaFile.getTitle().contains(word))
+                                score++;
+                            else
+                                score--;
+                        }
+                        if (score == mediaFile.getTitle().split(" ").length) {
+                            currentImdbId = item.getId();
+                            break;
+                        }
+                    }
+                    if (currentImdbId.isEmpty())
+                        currentImdbId = response.getD()[0].getId();
                     // make sure we are getting correct imdbid for our query. a valid imdb id is ttXXXXXXX, but I'm not sure
                     // how many integers it will be in the future.
                     Pattern pattern = Pattern.compile("tt\\d\\d\\d\\d.*");
