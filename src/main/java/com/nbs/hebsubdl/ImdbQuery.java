@@ -30,8 +30,7 @@ public class ImdbQuery {
                 if (response.getD() == null) {
                     mediaFile.setImdbId("");
                     continue;
-                }
-                else {
+                } else {
                     String currentImdbId = null;
                     for (ImdbJson.ImdbJsonArray item : response.getD()) {
                         int score = 0;
@@ -67,12 +66,11 @@ public class ImdbQuery {
     }
 
     private static ImdbJson sendImdbQuery (String callback, String urlString) throws IOException {
-        URL url = null;
-        url = new URL(urlString);
+        URL url = new URL(urlString);
         URLConnection urlConnection = url.openConnection();
         InputStream inputStream = urlConnection.getInputStream();
         String response="";
-        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));) { //try with resources, so they will be closed when we are done.
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) { //try with resources, so they will be closed when we are done.
             char[] readBuffer = new char[2048];
             int responseSize=bufferedReader.read(readBuffer); //let's read and see the response size
             while (responseSize > 0) {

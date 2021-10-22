@@ -10,7 +10,7 @@ public class Logger {
     public static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger("HebSubDL");
 
     public static void initLogger() {
-        FileHandler fileHandler = null;
+        FileHandler fileHandler;
         try {
             fileHandler = new FileHandler("log.log", 1000000, 2,true);
             logger.addHandler(fileHandler);

@@ -16,9 +16,7 @@ public class FilesAndFolders {
         return (FilenameUtils.isExtension(item.toString(),allowedExtensions) || item.isDirectory());
     }
     static private Predicate<? super Path> isFileValid = filePath -> (FilenameUtils.isExtension(filePath.toString(),allowedExtensions));
-    static private boolean isFileValid2(Path path) {
-        return(FilenameUtils.isExtension(path.toString(),allowedExtensions));
-    }
+
     public static void walkDir(String path, ArrayList<String> filesList) throws IOException {
         Files.walk(Paths.get(path)).filter(isFileValid).forEach(file -> filesList.add(file.toString()));
         //System.out.println(filesList);

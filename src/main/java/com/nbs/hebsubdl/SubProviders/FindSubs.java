@@ -62,11 +62,11 @@ public class FindSubs {
                     return o2.getScore().compareTo(o1.getScore());
                 }
             }
-            LinkedList<SubProviderScore> subProviderList = new LinkedList<SubProviderScore>();
+            LinkedList<SubProviderScore> subProviderList = new LinkedList<>();
 
-            String[] highestRatingSub = {"", ""};
+            //String[] highestRatingSub = {"", ""};
             for (ISubProvider subProvider : providersList) {
-                String providerFullClassName = subProvider.getClass().toString().replace("SubProvider","");;
+                String providerFullClassName = subProvider.getClass().toString().replace("SubProvider","");
                 String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
                 Logger.logger.fine("searching provider: " + provider);
 
@@ -89,7 +89,7 @@ public class FindSubs {
                     SubProviderScore subProviderScore = new SubProviderScore(subProvider,Integer.parseInt(currentRatingSub[1]),currentRatingSub[0]);
                     subProviderList.add(subProviderScore);
                     Logger.logger.fine("score for the subtitle from provider " + provider + " is " + subProviderScore.score);
-/*                    if (Integer.parseInt(currentRatingSub[1]) > maxRating) {
+                    /*if (Integer.parseInt(currentRatingSub[1]) > maxRating) {
                         maxRating = Integer.parseInt(currentRatingSub[1]);
                         bestProvider = subProvider;
                         highestRatingSub = currentRatingSub;
@@ -98,7 +98,7 @@ public class FindSubs {
             }
             if (!didDownload && !subProviderList.isEmpty()) {
                 Logger.logger.fine("sorting sub options by score.");
-                Collections.sort(subProviderList,new DescendingScoreComparator());
+                subProviderList.sort(new DescendingScoreComparator());
                 //if (!highestRatingSub[0].trim().isEmpty()) {
                 if (subProviderList.get(0).score>0) {
                     //no direct match - let's go with closest one

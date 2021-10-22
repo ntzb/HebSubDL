@@ -16,6 +16,7 @@ public class PropertiesClass {
     private static String watchDirectories;
     private static String watchIgnoreKeywords;
 
+    // single property
     public static void writeProperties(String property, String value) {
         // for a single property
         FileOutputStream fileOut = null;
@@ -27,38 +28,38 @@ public class PropertiesClass {
             prop.load(fileIn);
 
             switch (property) {
-                case "ktuvitUsername":
+                case "ktuvitUsername" -> {
                     setKtuvitUsername(value);
                     prop.setProperty("ktuvit.username", getKtuvitUsername());
-                    break;
-                case "ktuvitPassword":
+                }
+                case "ktuvitPassword" -> {
                     setKtuvitPassword(value);
                     prop.setProperty("ktuvit.password", getKtuvitPassword());
-                    break;
-                case "langSuffix":
+                }
+                case "langSuffix" -> {
                     setLangSuffix(value);
                     prop.setProperty("language.suffix", getLangSuffix());
-                    break;
-                case "openSubtitlesUserAgent":
+                }
+                case "openSubtitlesUserAgent" -> {
                     setOpenSubtitlesUserAgent(value);
                     prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
-                    break;
-                case "openSubtitlesUsername":
+                }
+                case "openSubtitlesUsername" -> {
                     setOpenSubtitlesUsername(value);
                     prop.setProperty("opensubtitles.username", getOpenSubtitlesUsername());
-                    break;
-                case "openSubtitlesPassword":
+                }
+                case "openSubtitlesPassword" -> {
                     setOpenSubtitlesPassword(value);
                     prop.setProperty("opensubtitles.password", getOpenSubtitlesPassword());
-                    break;
-                case "watchDirectories":
+                }
+                case "watchDirectories" -> {
                     setWatchDirectories(value);
                     prop.setProperty("watch.directories", getWatchDirectories());
-                    break;
-                case "watchIgnoreKeywords":
+                }
+                case "watchIgnoreKeywords" -> {
                     setWatchIgnoreKeywords(value);
                     prop.setProperty("watch.ignorekeywords", getWatchIgnoreKeywords());
-                    break;
+                }
             }
             // set the property value
             prop.setProperty(property, value);
@@ -77,6 +78,8 @@ public class PropertiesClass {
             }
         }
     }
+
+    // multiple properties
     public static void writeProperties(HashMap<String, String> properties) {
         // for multiple properties
         FileOutputStream fileOut = null;
@@ -90,38 +93,38 @@ public class PropertiesClass {
             // set the properties values
             for (String key : properties.keySet()) {
                 switch (key) {
-                    case "ktuvitUsername":
+                    case "ktuvitUsername" -> {
                         setKtuvitUsername(properties.get(key));
                         prop.setProperty("ktuvit.username", getKtuvitUsername());
-                        break;
-                    case "ktuvitPassword":
+                    }
+                    case "ktuvitPassword" -> {
                         setKtuvitPassword(properties.get(key));
                         prop.setProperty("ktuvit.password", getKtuvitPassword());
-                        break;
-                    case "langSuffix":
+                    }
+                    case "langSuffix" -> {
                         setLangSuffix(properties.get(key));
                         prop.setProperty("language.suffix", getLangSuffix());
-                        break;
-                    case "openSubtitlesUserAgent":
+                    }
+                    case "openSubtitlesUserAgent" -> {
                         setOpenSubtitlesUserAgent(properties.get(key));
                         prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
-                        break;
-                    case "openSubtitlesUsername":
+                    }
+                    case "openSubtitlesUsername" -> {
                         setOpenSubtitlesUsername(properties.get(key));
                         prop.setProperty("opensubtitles.username", getOpenSubtitlesUsername());
-                        break;
-                    case "openSubtitlesPassword":
+                    }
+                    case "openSubtitlesPassword" -> {
                         setOpenSubtitlesPassword(properties.get(key));
                         prop.setProperty("opensubtitles.password", getOpenSubtitlesPassword());
-                        break;
-                    case "watchDirectories":
+                    }
+                    case "watchDirectories" -> {
                         setWatchDirectories(properties.get(key));
                         prop.setProperty("watch.directories", getWatchDirectories());
-                        break;
-                    case "watchIgnoreKeywords":
+                    }
+                    case "watchIgnoreKeywords" -> {
                         setWatchIgnoreKeywords(properties.get(key));
                         prop.setProperty("watch.ignorekeywords", getWatchIgnoreKeywords());
-                        break;
+                    }
                 }
             }
 
@@ -144,7 +147,6 @@ public class PropertiesClass {
         //try (InputStream inputStream = new FileInputStream("config.properties")) {
         FileInputStream fileIn = null;
         try {
-            Properties prop = new Properties();
             File propFile = new File("config.properties");
             if (!propFile.exists())
                 propFile.createNewFile();
@@ -207,31 +209,27 @@ public class PropertiesClass {
         PropertiesClass.logLevel = logLevel;
         if (logLevel != null) {
             switch (logLevel.toLowerCase()) {
-                case "severe":
-                case "error":
-                    Logger.logger.setLevel(Level.SEVERE);
-                    break;
-                case "warning":
+                case "severe", "error" -> Logger.logger.setLevel(Level.SEVERE);
+                case "warning" -> {
                     Logger.logger.setLevel(Level.WARNING);
                     Logger.logger.warning("log level will be set to WARNING");
-                    break;
-                case "info":
+                }
+                case "info" -> {
                     Logger.logger.setLevel(Level.INFO);
                     Logger.logger.info("log level will be set to INFO");
-                    break;
-                case "fine":
+                }
+                case "fine" -> {
                     Logger.logger.setLevel(Level.FINE);
                     Logger.logger.info("log level will be set to FINE");
-                    break;
-                case "finer":
+                }
+                case "finer" -> {
                     Logger.logger.setLevel(Level.FINER);
                     Logger.logger.info("log level will be set to FINER");
-                    break;
-                case "finest":
-                case "debug":
+                }
+                case "finest", "debug" -> {
                     Logger.logger.setLevel(Level.FINEST);
                     Logger.logger.info("log level will be set to FINEST");
-                    break;
+                }
             }
         }
     }

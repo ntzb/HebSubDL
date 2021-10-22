@@ -21,8 +21,9 @@ public class WatchDir {
     private Timer timer = new Timer();
     TimerTask timerTask;
     private ArrayList<String> fileList = new ArrayList<>();
-    private JTable jTable;
-    private JFrame jFrame;
+    // these will only be assigned once, at app startup
+    private final JTable jTable;
+    private final JFrame jFrame;
 
     @SuppressWarnings("unchecked")
     static <T> WatchEvent<T> cast(WatchEvent<?> event) {
