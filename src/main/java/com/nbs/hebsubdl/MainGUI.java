@@ -217,11 +217,11 @@ public class MainGUI {
 
         if (result == JOptionPane.YES_OPTION) {
             // we want to exit - cleanup handlers
+            Logger.logger.info("exiting.");
             for (Handler h : Logger.logger.getHandlers())
                 h.close();
             // set back the exit on close property so it will actually exit.
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            Logger.logger.info("exiting.");
             return true;
         }
         return false;
@@ -263,7 +263,6 @@ public class MainGUI {
 
             defaultItem = new MenuItem("Exit");
             defaultItem.addActionListener(e -> {
-                Logger.logger.finer("exiting.");
                 if (showExitConfirmation(frame))
                     System.exit(0);
             });

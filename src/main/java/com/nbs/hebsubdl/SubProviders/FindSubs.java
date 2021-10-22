@@ -110,7 +110,7 @@ public class FindSubs {
                         String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
 
                         if (subProviderScore.subProvider.downloadSubFile(subProviderScore.id,mediaFile)) {
-                            Logger.logger.info(String.format("downloaded sub from %s (%s)!",provider, subProviderScore.subProvider.getChosenSubName()));
+                            Logger.logger.info(String.format("downloaded sub from %s! (%s)",provider, subProviderScore.subProvider.getChosenSubName()));
                             model.setValueAt("success!", count, 1);
                             MainGUI.fitColumns(jTable);
                             count++;

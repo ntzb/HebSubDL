@@ -46,7 +46,7 @@ public class ImdbQuery {
                             break;
                         }
                     }
-                    if (currentImdbId.isEmpty())
+                    if (currentImdbId == null || currentImdbId.isEmpty())
                         currentImdbId = response.getD()[0].getId();
                     // make sure we are getting correct imdbid for our query. a valid imdb id is ttXXXXXXX, but I'm not sure
                     // how many integers it will be in the future.

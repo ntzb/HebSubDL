@@ -176,6 +176,9 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                     //    Logger.logger.warning("can't delete the sub zip file!");
                 }
             }
+        } catch (Exception e) {
+            Logger.logException(e, "donwloading subtitle");
+            return false;
         }
         if (!subZip.delete())
             Logger.logger.warning("can't delete the sub zip file!");
@@ -217,7 +220,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
             }
             // movie - we can search by imdb or filename
             else if (!mediaFile.getImdbId().trim().isEmpty()) {
-                response = osClient.searchSubtitles(getLanguage(), mediaFile.getImdbId().trim());
+                response = osClient.searchSubtitles(getLanguage(), mediaFile.getImdbId().trim().replace("tt",""));
             } else {
                 response = osClient.searchSubtitles("eng", new File(mediaFile.getFileName()));
             }
