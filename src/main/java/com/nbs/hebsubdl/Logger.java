@@ -15,7 +15,7 @@ public class Logger {
             fileHandler = new FileHandler("log.log", 1000000, 2,true);
             logger.addHandler(fileHandler);
 
-            logger.setLevel(Level.FINEST);
+            logger.setLevel(Level.INFO);
             fileHandler.setFormatter(new SimpleFormatter() {
                 private static final String format
                         = "[%1$tF %1$tT] [%2$-7s] %3$s %n";
