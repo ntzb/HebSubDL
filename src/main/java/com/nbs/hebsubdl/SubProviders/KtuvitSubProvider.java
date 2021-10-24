@@ -37,7 +37,7 @@ public class KtuvitSubProvider implements ISubProvider {
 
     @Override
     public String[] getRating (MediaFile mediaFile, String[] titleWordsArray) {
-        String[] ratingResponseArray={"",""};
+        String[] ratingResponseArray={"0","0"};
         this.dbAccess = new DbAccess();
         boolean ktuvitLoginValid = this.dbAccess.loginValid();
         try {

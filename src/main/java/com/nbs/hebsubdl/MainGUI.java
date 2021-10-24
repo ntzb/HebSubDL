@@ -203,8 +203,8 @@ public class MainGUI {
                 FindSubs.findSubs(mediaFilesList, model, jTable);
             } else
                 Logger.logger.info("empty file list - nothing to do.");
-        } catch (IOException e) {
-            Logger.logException(e, "calling findSubs.");
+        } catch (Exception e) {
+            Logger.logException(e, "calling findSubs");
         }
     }
 

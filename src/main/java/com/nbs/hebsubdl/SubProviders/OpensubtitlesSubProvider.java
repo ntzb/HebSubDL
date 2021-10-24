@@ -237,6 +237,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
 
     @Override
     public String[] getRating(MediaFile mediaFile, String[] titleWordsArray) throws IOException {
+        String[] ratingResponseArray={"0","0"};
         if (alternativeLogin && osClient!= null) {
             List<SubtitleInfo> subList = doAlternateSearch(mediaFile, osClient);
             if (subList != null) {
