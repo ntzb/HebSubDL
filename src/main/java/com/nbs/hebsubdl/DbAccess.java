@@ -19,7 +19,7 @@ public class DbAccess {
 
     // check DB to see if we have a valid cookie. if not - generate one
     public boolean loginValid() {
-        String dbPath = "test.sqlite";
+        String dbPath = "db.sqlite";
 
         String getLoginSql = "CREATE TABLE IF NOT EXISTS login (\n"
                 + "	cookie text PRIMARY KEY,\n"
