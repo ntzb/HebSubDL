@@ -222,15 +222,15 @@ public class OpensubtitlesSubProvider implements ISubProvider {
             else if (!mediaFile.getImdbId().trim().isEmpty()) {
                 response = osClient.searchSubtitles(getLanguage(), mediaFile.getImdbId().trim().replace("tt",""));
             } else {
-                response = osClient.searchSubtitles("eng", new File(mediaFile.getFileName()));
+                response = osClient.searchSubtitles(getLanguage(), mediaFile.getFileName(), "", "");
             }
             Optional<List<SubtitleInfo>> subtitles = response.getData();
 
             if (subtitles.isPresent()) {
                 return subtitles.get();
             }
-        } catch (XmlRpcException | IOException e) {
-            e.printStackTrace();
+        } catch (XmlRpcException e) {
+            Logger.logException(e, "searching for subtitle");
         }
         return null;
     }
@@ -240,17 +240,14 @@ public class OpensubtitlesSubProvider implements ISubProvider {
         String[] ratingResponseArray={"0","0"};
         if (alternativeLogin && osClient!= null) {
             List<SubtitleInfo> subList = doAlternateSearch(mediaFile, osClient);
-            if (subList != null) {
-                String[] ratingResponseArray = getTitleRating(subList, titleWordsArray, mediaFile);
-                return ratingResponseArray;
-            }
-            else
-                return null;
+            if (subList != null)
+                ratingResponseArray = getTitleRating(subList, titleWordsArray, mediaFile);
+            return ratingResponseArray;
         }
         else {
             generateQueryURL(mediaFile);
             QueryJsonResponse[] queryJsonResponses = mapJsonResponse(getQueryJsonResponse(getQueryURL()));
-            String[] ratingResponseArray = getTitleRating(queryJsonResponses, titleWordsArray);
+            ratingResponseArray = getTitleRating(queryJsonResponses, titleWordsArray);
             return ratingResponseArray;
         }
     }
