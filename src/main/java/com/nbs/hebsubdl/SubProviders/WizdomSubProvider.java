@@ -70,7 +70,7 @@ public class WizdomSubProvider implements ISubProvider {
 
     @Override
     public boolean downloadSubFile(String subId, MediaFile mediaFile) throws IOException {
-        File subZip = new File(FilenameUtils.removeExtension(mediaFile.getPathName()+"\\"+
+        File subZip = new File(FilenameUtils.removeExtension(mediaFile.getPathName()+"/"+
                 mediaFile.getFileName())+".zip");
         URL url = new URL("http://zip.wizdom.xyz/"+subId+".zip");
         try (ReadableByteChannel rbc = Channels.newChannel(url.openStream()); //try with resources
@@ -89,10 +89,10 @@ public class WizdomSubProvider implements ISubProvider {
                     }
                 }
                 new ZipFile(subZip).extractFile(subFileInZip.toString(), mediaFile.getPathName());
-                File extractedSubFile = new File(mediaFile.getPathName()+"\\"+subFileInZip);
-                File newSubFile = new File(mediaFile.getPathName()+"\\"+
-                        FilenameUtils.removeExtension(mediaFile.getOriginalFileName())+PropertiesClass.getLangSuffix()+'.'+
-                        FilenameUtils.getExtension(extractedSubFile.toString()));
+                File extractedSubFile = new File(mediaFile.getPathName()+"/"+subFileInZip);
+                File newSubFile = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
+                        FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
+                        FilenameUtils.getExtension(extractedSubFile.toString())));
                 if (!extractedSubFile.renameTo(newSubFile))
                     Logger.logger.warning("could not rename the file!");
                 fos.close();

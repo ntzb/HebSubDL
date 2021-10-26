@@ -328,9 +328,9 @@ public class KtuvitSubProvider implements ISubProvider {
                 return false;
 
             String fileName = con.getHeaderField("Content-Disposition");
-            File filePath = new File(mediaFile.getPathName() + "\\" +
-                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix() + '.' +
-                    FilenameUtils.getExtension(fileName));
+            File filePath = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
+                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
+                    FilenameUtils.getExtension(fileName)));
             long bytesTransferred = 0;
             try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); //try with resources
                  FileOutputStream fos = new FileOutputStream(filePath)) {

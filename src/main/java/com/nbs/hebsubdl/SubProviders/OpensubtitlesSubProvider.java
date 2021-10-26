@@ -120,8 +120,8 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     @Override
     public boolean downloadSubFile(String subId, MediaFile mediaFile) throws IOException {
         URLConnection con = (new URL(subId)).openConnection();
-        File subZip = new File(FilenameUtils.removeExtension(mediaFile.getPathName()+"\\"+
-                mediaFile.getFileName())+ (alternativeLogin ? ".gz" : ".zip"));
+        File subZip = new File(FilenameUtils.removeExtension(String.format("%s/%s", mediaFile.getPathName(),
+                mediaFile.getFileName()))+(alternativeLogin ? ".gz" : ".zip"));
 
         try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); //try with resources
              FileOutputStream fos = new FileOutputStream(subZip)) {
@@ -143,8 +143,8 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                         extension = "."+FilenameUtils.getExtension(FilenameUtils.removeExtension(filename));
                         Logger.logger.finer(String.format("found extension %s.", extension));
                     }
-                    String outputSubFileName = mediaFile.getPathName() + "\\" +
-                            FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix() + extension;
+                    String outputSubFileName = String.format("%s/%s%s%s", mediaFile.getPathName(),
+                            FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(), extension);
 
                     try (GZIPInputStream gis = new GZIPInputStream(new FileInputStream(subZip));
                          FileOutputStream fosGz = new FileOutputStream(outputSubFileName)) {
@@ -165,10 +165,10 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                         }
                     }
                     new ZipFile(subZip).extractFile(subFileInZip.toString(), mediaFile.getPathName());
-                    File extractedSubFile = new File(mediaFile.getPathName() + "\\" + subFileInZip);
-                    File newSubFile = new File(mediaFile.getPathName() + "\\" +
-                            FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix() + '.' +
-                            FilenameUtils.getExtension(extractedSubFile.toString()));
+                    File extractedSubFile = new File(mediaFile.getPathName() + "/" + subFileInZip);
+                    File newSubFile = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
+                            FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
+                            FilenameUtils.getExtension(extractedSubFile.toString())));
                     if (!extractedSubFile.renameTo(newSubFile))
                         Logger.logger.warning("could not rename the file");
                     fos.close();

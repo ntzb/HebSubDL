@@ -151,8 +151,8 @@ public class FindSubs {
     public static boolean subAlreadyExists(MediaFile mediaFile) {
         final String[] allowedSubExtensions = {"srt", "sub"};
         for (String extension : allowedSubExtensions) {
-            String subFile = mediaFile.getPathName() + "\\" +
-                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()) + PropertiesClass.getLangSuffix()+'.' + extension;
+            String subFile = String.format("%s/%s%s.%s", mediaFile.getPathName(), FilenameUtils.removeExtension(mediaFile.getOriginalFileName()),
+                    PropertiesClass.getLangSuffix(), extension);
             File newSubFile = new File(subFile);
             if (newSubFile.exists())
                 return true;
