@@ -17,8 +17,11 @@ public class FindSubs {
         Logger.logger.info("will search subtitles for " + mediaFileList.size() + " items.");
         List<ISubProvider> providersList = new ArrayList<>(); //create a list of all providers to make iteration easy
 
-        providersList.add(new WizdomSubProvider());
-        providersList.add(new KtuvitSubProvider());
+        // these are hebrew only, don't search them unless hebrew
+        if (PropertiesClass.getLangSuffix().equals(".he")) {
+            providersList.add(new WizdomSubProvider());
+            providersList.add(new KtuvitSubProvider());
+        }
         providersList.add(new OpensubtitlesSubProvider());
         //providersList.add(subscenterSubProvider); - DEAD
         int count = 1;
