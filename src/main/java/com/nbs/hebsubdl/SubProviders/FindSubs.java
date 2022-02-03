@@ -35,8 +35,14 @@ public class FindSubs {
                     MainGUI.fitColumns(jTable);
                     continue;
                 }
-                String[] titleWordsArray = mediaFile.getFileName().toLowerCase().replaceAll("_", " ").replaceAll
-                        ("\\.", " ").replaceAll("-", " ").split(" ");
+                // fix title words array
+                String[] titleWordsArray = mediaFile.getFileName().toLowerCase()
+                        .replaceAll("dd.{0,2}(2.{0,2}(0|1))", "dd20")
+                        .replaceAll("dd.{0,2}(5.{0,2}(0|1))", "dd50")
+                        .replace("web-dl","webdl")
+                        .replace("h.264","h264")
+                        .replaceAll("_", " ")
+                        .replaceAll("\\.", " ").replaceAll("-", " ").split(" ");
                 int maxTitleRating = titleWordsArray.length, maxRating = 0;
                 boolean didDownload = false;
                 //ISubProvider bestProvider = wizdomSubProvider;

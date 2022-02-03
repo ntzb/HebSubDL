@@ -109,7 +109,11 @@ public class WizdomSubProvider implements ISubProvider {
     }
 
     private int getTitleRating(String[] titleWordArray, String matchedTitle) {
-        String[] testedTitleWordArray = matchedTitle.toLowerCase().replaceAll("_", " ").replaceAll
+        String[] testedTitleWordArray = matchedTitle.toLowerCase()
+                .replaceAll("dd.{0,2}(2.{0,2}(0|1))", "dd20")
+                .replaceAll("dd.{0,2}(5.{0,2}(0|1))", "dd50")
+                .replace("web-dl","webdl")
+                .replaceAll("_", " ").replaceAll
                 ("\\.", " ").replaceAll("-", " ").split(" ");
         chosenSubName = matchedTitle;
         int rating = 0;

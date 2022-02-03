@@ -281,7 +281,11 @@ public class KtuvitSubProvider implements ISubProvider {
         String highestRatingLink ="";
         for(String sub : foundSubs.keySet()) {
             String testedTitle = sub.toLowerCase().trim();
-            String[] testedTitleWordArray = testedTitle.replaceAll("_"," ").replaceAll
+            String[] testedTitleWordArray = testedTitle
+                    .replaceAll("dd.{0,2}(2.{0,2}(0|1))", "dd20")
+                    .replaceAll("dd.{0,2}(5.{0,2}(0|1))", "dd50")
+                    .replace("web-dl","webdl")
+                    .replaceAll("_"," ").replaceAll
                     ("\\."," ").replaceAll("-"," ").split(" ");
             int rating = 0;
             for (String word:titleWordsArray) {
