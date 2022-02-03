@@ -36,6 +36,7 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     OpenSubtitlesClient osClient;
     String chosenSubName;
     String chosenSubFormat;
+    private boolean isMovie;
 
     @Override
     public String getChosenSubName() {
@@ -71,6 +72,13 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                 this.language = "heb";
             }
         }
+    }
+
+    private boolean getIsMovie() {
+        return isMovie;
+    }
+    private void setIsMovie(String episode) {
+        this.isMovie = episode.equals("0");
     }
 
     @Override
@@ -197,8 +205,9 @@ public class OpensubtitlesSubProvider implements ISubProvider {
             URL serverUrl = new URL("https", "api.opensubtitles.org", 443, "/xml-rpc");
             OpenSubtitlesClient osClient = new OpenSubtitlesClientImpl(serverUrl);
             // logging in
-            LoginResponse loginResponse = (LoginResponse) osClient.login("jointdogg@gmail.com", "asdasd", "en", "XBMC_Subtitles_Login_v5.0.16");
-
+            LoginResponse loginResponse = (LoginResponse) osClient.login(
+                    PropertiesClass.getOpenSubtitlesUsername().trim(), PropertiesClass.getOpenSubtitlesPassword().trim(),
+                    "en", "XBMC_Subtitles_Login_v5.0.16");
             // checking login status
             assert loginResponse.getStatus() == ResponseStatus.OK;
             assert osClient.isLoggedIn();
@@ -217,6 +226,13 @@ public class OpensubtitlesSubProvider implements ISubProvider {
             // tvshow - search by title, season, episode only
             if (!mediaFile.getEpisode().equals("0")) {
                 response = osClient.searchSubtitles(getLanguage(), mediaFile.getTitle(), mediaFile.getSeason(), mediaFile.getEpisode());
+                if (response.getData().isPresent() && response.getData().get().size() == 0 &&
+                        !(mediaFile.getTitle().split(" ").length == 1) && mediaFile.getTitle().matches(".*\\D\\d{4}(?!\\d).*")) {
+                    // empty response, maybe it's because of year in title? check and remove (but only in case the title contains more than a word
+                    Logger.logger.info("OpenSubtitles found empty response, the title might contain the year, removing and trying again.");
+                    String titleSearch = mediaFile.getTitle().replaceAll("\\d\\d\\d\\d", "").trim();
+                    response = osClient.searchSubtitles(getLanguage(), titleSearch, mediaFile.getSeason(), mediaFile.getEpisode());
+                }
             }
             // movie - we can search by imdb or filename
             else if (!mediaFile.getImdbId().trim().isEmpty()) {
@@ -238,18 +254,25 @@ public class OpensubtitlesSubProvider implements ISubProvider {
     @Override
     public String[] getRating(MediaFile mediaFile, String[] titleWordsArray) throws IOException {
         String[] ratingResponseArray={"0","0"};
-        if (alternativeLogin && osClient!= null) {
+        setIsMovie(mediaFile.getEpisode());
+        if (alternativeLogin && osClient!= null && osClient.isLoggedIn()) {
             List<SubtitleInfo> subList = doAlternateSearch(mediaFile, osClient);
             if (subList != null)
                 ratingResponseArray = getTitleRating(subList, titleWordsArray, mediaFile);
-            return ratingResponseArray;
         }
         else {
-            generateQueryURL(mediaFile);
-            QueryJsonResponse[] queryJsonResponses = mapJsonResponse(getQueryJsonResponse(getQueryURL()));
-            ratingResponseArray = getTitleRating(queryJsonResponses, titleWordsArray);
-            return ratingResponseArray;
+            if (alternativeLogin && osClient!= null && !osClient.isLoggedIn())
+                Logger.logger.severe("failed logging in to OpenSubtitles, check your credentials.");
+                Logger.logger.fine("will try searching OpenSubtitles using useragent.");
+            if (PropertiesClass.getOpenSubtitlesUserAgent().trim().isEmpty())
+                Logger.logger.severe("useragent is empty, can't search for subtitles!");
+            else {
+                generateQueryURL(mediaFile);
+                QueryJsonResponse[] queryJsonResponses = mapJsonResponse(getQueryJsonResponse(getQueryURL()));
+                ratingResponseArray = getTitleRating(queryJsonResponses, titleWordsArray);
+            }
         }
+        return ratingResponseArray;
     }
 
     private QueryJsonResponse[] mapJsonResponse (String response) throws IOException {
@@ -270,12 +293,15 @@ public class OpensubtitlesSubProvider implements ISubProvider {
                     .replaceAll("_"," ").replaceAll
                     ("\\."," ").replaceAll("-"," ").split(" ");
             int rating = 0;
-            // added bonus for matched series imdb id
-            if (!mediaFile.getImdbId().isEmpty() && mediaFile.getImdbId().contains(subInfo.getSeriesImdbId()))
-                rating = rating+3;
-            // added bonus for non hearing impaired subs if looking for English subs
-            if (this.language.equals("eng") && testedTitle.contains("nonhi"))
-                rating++;
+            // bonus for english search of tv shows:
+            if (this.language.equals("eng") && !this.isMovie) {
+                // added bonus for matched series imdb id
+                if (!mediaFile.getImdbId().isEmpty() && mediaFile.getImdbId().contains(subInfo.getSeriesImdbId()))
+                    rating = rating + 3;
+                // added bonus for non hearing impaired subs when looking for English subs
+                if (testedTitle.contains("nonhi"))
+                    rating++;
+            }
             for (String word:titleWordsArray) {
                 if (Arrays.asList(testedTitleWordArray).contains(word))
                     rating++;
