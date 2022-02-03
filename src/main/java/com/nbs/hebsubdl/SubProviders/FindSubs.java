@@ -29,7 +29,7 @@ public class FindSubs {
             try {
                 Logger.logger.info("searching subtitles for item: " + mediaFile.getFileName());
                 if (subAlreadyExists(mediaFile)) {
-                    Logger.logger.info("subtitle already exists!" + mediaFile.getFileName());
+                    Logger.logger.info("subtitle already exists! " + mediaFile.getFileName());
                     model.setValueAt("sub already exists", count, 1);
                     count++;
                     MainGUI.fitColumns(jTable);
@@ -141,9 +141,10 @@ public class FindSubs {
                     }
                 }
             } catch (Exception e) {
-                model.setValueAt("failed - didn't find a match.", count, 1);
+                model.setValueAt("failed - error during search.", count, 1);
                 MainGUI.fitColumns(jTable);
                 count++;
+                Logger.logException(e, "error during search");
             }
         }
     }
