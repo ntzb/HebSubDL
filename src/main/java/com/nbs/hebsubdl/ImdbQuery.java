@@ -78,7 +78,11 @@ public class ImdbQuery {
                 responseSize = bufferedReader.read(readBuffer);
             }
         }
-        response=response.substring(callback.length());
+        Pattern pattern = Pattern.compile("\\{.*\\}");
+        Matcher matcher = pattern.matcher(response);
+        if (matcher.find())
+            response = matcher.group(0);
+        //response=response.substring(callback.length());
         ObjectMapper objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         return objectMapper.readValue(response,ImdbJson.class);
     }
