@@ -39,7 +39,7 @@ public class WizdomSubProvider implements ISubProvider {
 
     @Override
     public void generateQueryURL(MediaFile mediaFile) throws MalformedURLException {
-        this.setQueryURL(new URL("http://json.wizdom.xyz/search.php?action=by_id&imdb="+mediaFile.getImdbId()+
+        this.setQueryURL(new URL("http://wizdom.xyz/api/search?action=by_id&imdb="+mediaFile.getImdbId()+
                 "&season="+mediaFile.getSeason()+"&episode="+mediaFile.getEpisode()+
                 "&version="+mediaFile.getFileName()));
     }
@@ -72,7 +72,7 @@ public class WizdomSubProvider implements ISubProvider {
     public boolean downloadSubFile(String subId, MediaFile mediaFile) throws IOException {
         File subZip = new File(FilenameUtils.removeExtension(mediaFile.getPathName()+"/"+
                 mediaFile.getFileName())+".zip");
-        URL url = new URL("http://zip.wizdom.xyz/"+subId+".zip");
+        URL url = new URL("http://wizdom.xyz/api/files/sub/"+subId);
         try (ReadableByteChannel rbc = Channels.newChannel(url.openStream()); //try with resources
              FileOutputStream fos = new FileOutputStream(subZip)) {
             long bytesTransferred = fos.getChannel().transferFrom(rbc, 0, 1000000);
