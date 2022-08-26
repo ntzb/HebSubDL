@@ -91,7 +91,7 @@ public class KtuvitSubProvider implements ISubProvider {
         }
 
         // we logged in, get the cookie and validity time
-        String[] cookieArray = con.getHeaderFields().get("Set-Cookie").get(0).split(";");
+        String[] cookieArray = con.getHeaderFields().get("set-cookie").get(0).split(";");
         String cookie = cookieArray[0];
         //String cookie = cookieArray[0].split("=",2)[1];
         String validUntilStr = cookieArray[1].split("=",2)[1];
@@ -108,7 +108,7 @@ public class KtuvitSubProvider implements ISubProvider {
             con.setRequestMethod(type);
             if (cookieNeeded) {
                 String ourCookie = this.dbAccess.getCookie();
-                con.setRequestProperty("Cookie", ourCookie);
+                con.setRequestProperty("cookie", ourCookie);
                 //works: con.setRequestProperty("Cookie", "ASP.NET_SessionId=t1u01gm255z2vxewddqqen4a; Login=u=D97AB58498264A1B771B6BA3302E89AB&g=0CDB1D895885C22247DC00D2698AB93C52F75FBA1ABB08652117057D3EBCAF56C5742E631716308196C9EBCB9C9634F1");
                 //works: con.setRequestProperty("Cookie", "Login=u=D97AB58498264A1B771B6BA3302E89AB&g=0CDB1D895885C22247DC00D2698AB93C52F75FBA1ABB08652117057D3EBCAF56C5742E631716308196C9EBCB9C9634F1");
                 //doesn't work: con.setRequestProperty("Cookie", "u=D97AB58498264A1B771B6BA3302E89AB&g=0CDB1D895885C22247DC00D2698AB93C52F75FBA1ABB08652117057D3EBCAF56C5742E631716308196C9EBCB9C9634F1");
@@ -205,9 +205,9 @@ public class KtuvitSubProvider implements ISubProvider {
         headers.put("sec-fetch-dest", "document");
         headers.put("sec-ch-ua-mobile", "?0");
         headers.put("sec-ch-ua", "\"Chromium\";v=\"92\", \" Not A;Brand\";v=\"99\", \"Google Chrome\";v=\"92\"");
-        headers.put("accept-encoding", "gzip, deflate, br");
+        headers.put("accept-encoding", "gzip, deflate");
         headers.put("accept-language", "en-US,en;q=0.9");
-        headers.put("Referer", "https://www.ktuvit.me/MovieInfo.aspx?ID="+filmID);
+        headers.put("referer", "https://www.ktuvit.me/MovieInfo.aspx?ID="+filmID);
         return headers;
     }
 
@@ -222,7 +222,8 @@ public class KtuvitSubProvider implements ISubProvider {
             if (status == 200) {
                 InputStream input = con.getInputStream();
                 BufferedReader in;
-                if (urlStr.contains("MovieInfo"))
+                String encoding = con.getHeaderField("content-encoding");
+                if (encoding != null && encoding.equals("gzip"))
                     in = new BufferedReader(new InputStreamReader(new GZIPInputStream(input)));
                 else
                     in = new BufferedReader(new InputStreamReader(input));
