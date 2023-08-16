@@ -13,17 +13,25 @@ import java.io.IOException;
 import java.util.*;
 
 public class FindSubs {
+    static List<ISubProvider> providersList = new ArrayList<>(); //create a list of all providers to make iteration easy
+
+    public static void initProviders() {
+        // these are hebrew only, don't search them unless hebrew
+        providersList.add(new WizdomSubProvider());
+        providersList.add(new KtuvitSubProvider());
+        OpensubtitlesNewSubProvider openSubtitles = new OpensubtitlesNewSubProvider();
+        if (openSubtitles.tokenValidity > 0) {
+            providersList.add(openSubtitles);
+        }
+
+        providersList.forEach(provider -> {
+            Logger.logger.info(String.format("provider %s added", getProviderName(provider)));
+        });
+    }
+
     public static void findSubs(ArrayList<MediaFile> mediaFileList, DefaultTableModel model, JTable jTable) {
         Logger.logger.info("will search subtitles for " + mediaFileList.size() + " items.");
-        List<ISubProvider> providersList = new ArrayList<>(); //create a list of all providers to make iteration easy
 
-        // these are hebrew only, don't search them unless hebrew
-        if (PropertiesClass.getLangSuffix().equals(".he")) {
-            providersList.add(new WizdomSubProvider());
-            providersList.add(new KtuvitSubProvider());
-        }
-        providersList.add(new OpensubtitlesSubProvider());
-        //providersList.add(subscenterSubProvider); - DEAD
         int count = 1;
         for (MediaFile mediaFile : mediaFileList) {
             try {
@@ -67,6 +75,7 @@ public class FindSubs {
                         return score;
                     }
                 }
+
                 class DescendingScoreComparator implements Comparator<SubProviderScore> {
                     @Override
                     public int compare(SubProviderScore o1, SubProviderScore o2) {
@@ -77,8 +86,13 @@ public class FindSubs {
 
                 //String[] highestRatingSub = {"", ""};
                 for (ISubProvider subProvider : providersList) {
-                    String providerFullClassName = subProvider.getClass().toString().replace("SubProvider", "");
-                    String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
+
+                    if (!PropertiesClass.getLangSuffix().equals(".he") && subProvider.isHebrewOnly) {
+                        // if it's not hebrew, and the provider is hebrew only, skip the provider
+                        continue;
+                    }
+
+                    String provider = getProviderName(subProvider);
                     Logger.logger.fine("searching provider: " + provider);
 
                     //iterate over list of providers and get the highest rating
@@ -117,8 +131,7 @@ public class FindSubs {
 
                         // try downloading from the first provider, if it fails, try the second one... etc.
                         for (SubProviderScore subProviderScore : subProviderList) {
-                            String providerFullClassName = subProviderScore.subProvider.getClass().toString().replace("SubProvider", "");
-                            String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
+                            String provider = getProviderName(subProviderScore.subProvider);
 
                             if (subProviderScore.subProvider.downloadSubFile(subProviderScore.id, mediaFile)) {
                                 Logger.logger.info(String.format("downloaded sub from %s! (%s)", provider, subProviderScore.subProvider.getChosenSubName()));
@@ -165,5 +178,11 @@ public class FindSubs {
                 return true;
         }
         return false;
+    }
+
+    private static String getProviderName(ISubProvider subProvider) {
+        String providerFullClassName = subProvider.getClass().toString().replace("SubProvider", "");
+        String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
+        return provider;
     }
 }

@@ -13,6 +13,7 @@ public class PropertiesClass {
     private static String openSubtitlesUserAgent;
     private static String openSubtitlesUsername;
     private static String openSubtitlesPassword;
+    private static String openSubtitlesApiKey;
     private static String watchDirectories;
     private static String watchIgnoreKeywords;
 
@@ -51,6 +52,10 @@ public class PropertiesClass {
                 case "openSubtitlesPassword" -> {
                     setOpenSubtitlesPassword(value);
                     prop.setProperty("opensubtitles.password", getOpenSubtitlesPassword());
+                }
+                case "openSubtitlesApiKey" -> {
+                    setOpenSubtitlesApiKey(value);
+                    prop.setProperty("opensubtitles.apikey", getOpenSubtitlesApiKey());
                 }
                 case "watchDirectories" -> {
                     setWatchDirectories(value);
@@ -117,6 +122,10 @@ public class PropertiesClass {
                         setOpenSubtitlesPassword(properties.get(key));
                         prop.setProperty("opensubtitles.password", getOpenSubtitlesPassword());
                     }
+                    case "openSubtitlesApiKey" -> {
+                        setOpenSubtitlesApiKey(properties.get(key));
+                        prop.setProperty("opensubtitles.apikey", getOpenSubtitlesApiKey());
+                    }
                     case "watchDirectories" -> {
                         setWatchDirectories(properties.get(key));
                         prop.setProperty("watch.directories", getWatchDirectories());
@@ -162,6 +171,7 @@ public class PropertiesClass {
             setOpenSubtitlesUserAgent((useragent == null || useragent.trim().isEmpty()) ? "TemporaryUserAgent" : useragent);
             setOpenSubtitlesUsername(properties.getProperty("opensubtitles.username"));
             setOpenSubtitlesPassword(properties.getProperty("opensubtitles.password"));
+            setOpenSubtitlesApiKey(properties.getProperty("opensubtitles.apikey"));
             setLogLevel(properties.getProperty("log.level"));
             setWatchDirectories(properties.getProperty("watch.directories"));
             setWatchIgnoreKeywords(properties.getProperty("watch.ignorekeywords"));
@@ -272,5 +282,13 @@ public class PropertiesClass {
 
     public static void setOpenSubtitlesPassword(String openSubtitlesPassword) {
         PropertiesClass.openSubtitlesPassword = openSubtitlesPassword;
+    }
+
+    public static String getOpenSubtitlesApiKey() {
+        return openSubtitlesApiKey;
+    }
+
+    public static void setOpenSubtitlesApiKey(String openSubtitlesApiKey) {
+        PropertiesClass.openSubtitlesApiKey = openSubtitlesApiKey;
     }
 }

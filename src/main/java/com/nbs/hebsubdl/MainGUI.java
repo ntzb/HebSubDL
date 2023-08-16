@@ -75,6 +75,8 @@ public class MainGUI {
         frame.setVisible(true);
 
         setupDirWatcher(mainGUI, frame);
+
+        FindSubs.initProviders();
     }
 
     private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {

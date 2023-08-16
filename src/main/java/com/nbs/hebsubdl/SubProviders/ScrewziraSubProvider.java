@@ -19,6 +19,7 @@ public class ScrewziraSubProvider implements ISubProvider {
     private URL queryURL;
     private StringBuilder requestJson = new StringBuilder();
     String chosenSubName;
+    boolean isHebrewOnly = true;
 
     @Override
     public String getChosenSubName() {

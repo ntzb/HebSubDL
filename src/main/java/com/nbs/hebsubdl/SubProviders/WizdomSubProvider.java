@@ -22,6 +22,7 @@ import java.util.List;
 public class WizdomSubProvider implements ISubProvider {
     private URL queryURL;
     String chosenSubName;
+    boolean isHebrewOnly = true;
 
     @Override
     public String getChosenSubName() {

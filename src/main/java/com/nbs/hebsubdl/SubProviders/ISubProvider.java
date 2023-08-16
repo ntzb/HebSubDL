@@ -16,4 +16,5 @@ public interface ISubProvider {
     boolean downloadSubFile(String subId, MediaFile mediaFile) throws IOException;
 //    void getSub (MediaFile mediaFile) throws IOException;
     String[] getRating (MediaFile mediaFile, String[] titleWordsArray) throws IOException;
+    boolean isHebrewOnly = false;
 }

@@ -28,8 +28,6 @@ replay_pid*
 config.properties
 log.log*
 
-gradlew
-
 # directories
 .gradle/
 bin/

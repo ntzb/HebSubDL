@@ -23,6 +23,8 @@ public class SettingsDialog extends JDialog {
     private JLabel openSubtitlesUsernameLabel;
     private JLabel openSubtitlesPasswordLabel;
     private JPasswordField openSubtitlesPasswordField;
+    private JLabel openSubtitlesApiKeyLabel;
+    private JTextField openSubtitlesApiKeyField;
 
 
     public SettingsDialog() {
@@ -66,46 +68,16 @@ public class SettingsDialog extends JDialog {
         String langSuffix = LanguageSuffixField.getText().trim();
         String openSubtitlesUsername = openSubtitlesUsernameField.getText().trim();
         String openSubtitlesPassword = new String(openSubtitlesPasswordField.getPassword());
+        String openSubtitlesApiKey = new String(openSubtitlesApiKeyField.getText().trim());
 
         HashMap<String, String> properties = new HashMap<>();
-        //if (!ktuvitUsername.isEmpty())
         properties.put("ktuvitUsername", ktuvitUsername);
-        //if (!ktuvitPassword.isEmpty())
         properties.put("ktuvitPassword", ktuvitPassword);
-        //if (!langSuffix.isEmpty())
         properties.put("langSuffix", (langSuffix.isEmpty() || langSuffix.startsWith(".")) ? langSuffix : "." + langSuffix);
-        //if (!openSubtitlesUsername.isEmpty())
         properties.put("openSubtitlesUsername", openSubtitlesUsername);
-        //if (!openSubtitlesPassword.isEmpty())
         properties.put("openSubtitlesPassword", openSubtitlesPassword);
+        properties.put("openSubtitlesApiKey", openSubtitlesApiKey);
         PropertiesClass.writeProperties(properties);
-
-        /*try {
-            InputStream inputStream = new FileInputStream("config.properties");
-
-            //load current properties
-            Properties properties = new Properties();
-            properties.load(inputStream);
-
-            OutputStream outputStream = new FileOutputStream("config.properties");
-
-            // set the properties value
-            properties.setProperty("ktuvit.date", Long.toString(System.currentTimeMillis()));
-
-            if (!ktuvitUsername.trim().isEmpty())
-                properties.setProperty("ktuvit.username", ktuvitUsername);
-            if (!ktuvitPassword.trim().isEmpty())
-                properties.setProperty("ktuvit.password", ktuvitPassword);
-
-            if (!LanguageSuffixField.getText().trim().isEmpty())
-                properties.setProperty("langSuffix", LanguageSuffixField.getText());
-
-            // save properties to project root folder
-            properties.store(outputStream, null);
-
-        } catch (IOException io) {
-            io.printStackTrace();
-        }*/
 
         dispose();
     }
@@ -129,6 +101,7 @@ public class SettingsDialog extends JDialog {
         LanguageSuffixField.setText(PropertiesClass.getLangSuffix());
         openSubtitlesUsernameField.setText(PropertiesClass.getOpenSubtitlesUsername());
         openSubtitlesPasswordField.setText(PropertiesClass.getOpenSubtitlesPassword());
+        openSubtitlesApiKeyField.setText(PropertiesClass.getOpenSubtitlesApiKey());
     }
 
     {
@@ -165,13 +138,13 @@ public class SettingsDialog extends JDialog {
         buttonCancel.setToolTipText("discard changes");
         panel2.add(buttonCancel, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JPanel panel3 = new JPanel();
-        panel3.setLayout(new GridLayoutManager(6, 3, new Insets(0, 0, 0, 0), -1, -1));
+        panel3.setLayout(new GridLayoutManager(7, 3, new Insets(0, 0, 0, 0), -1, -1));
         contentPane.add(panel3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         ktuvitUsernameLabel = new JLabel();
         ktuvitUsernameLabel.setText("Ktuvit username:");
         panel3.add(ktuvitUsernameLabel, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final Spacer spacer2 = new Spacer();
-        panel3.add(spacer2, new GridConstraints(4, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        panel3.add(spacer2, new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         ktuvitUsernameField = new JTextField();
         panel3.add(ktuvitUsernameField, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         final Spacer spacer3 = new Spacer();
@@ -183,23 +156,31 @@ public class SettingsDialog extends JDialog {
         panel3.add(ktuvitPasswordField, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         LanguageSuffixField = new JTextField();
         LanguageSuffixField.setToolTipText("can only be 2 letter (iso 639-1) language code (e.g. \"he\")");
-        panel3.add(LanguageSuffixField, new GridConstraints(5, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        panel3.add(LanguageSuffixField, new GridConstraints(6, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         openSubtitlesUsernameLabel = new JLabel();
         openSubtitlesUsernameLabel.setText("OpenSubtitles username:");
-        openSubtitlesUsernameLabel.setToolTipText("your OpenSubtitles Username (email)");
+        openSubtitlesUsernameLabel.setToolTipText("your OpenSubtitles Username (NOT email)");
         panel3.add(openSubtitlesUsernameLabel, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         openSubtitlesUsernameField = new JTextField();
-        openSubtitlesUsernameField.setToolTipText("your OpenSubtitles UserAgent string. see github ReadMe for more info.");
+        openSubtitlesUsernameField.setToolTipText("");
         panel3.add(openSubtitlesUsernameField, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         languageSuffixLabel = new JLabel();
         languageSuffixLabel.setText("Language suffix:");
         languageSuffixLabel.setToolTipText("can only be 2 letter (iso 639-1) language code (e.g. \"he\")");
-        panel3.add(languageSuffixLabel, new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel3.add(languageSuffixLabel, new GridConstraints(6, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         openSubtitlesPasswordLabel = new JLabel();
         openSubtitlesPasswordLabel.setText("OpenSubtitles password:");
+        openSubtitlesPasswordLabel.setToolTipText("Your OpenSubtitles password");
         panel3.add(openSubtitlesPasswordLabel, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         openSubtitlesPasswordField = new JPasswordField();
         panel3.add(openSubtitlesPasswordField, new GridConstraints(3, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        openSubtitlesApiKeyLabel = new JLabel();
+        openSubtitlesApiKeyLabel.setText("OpenSubtitles API Key:");
+        openSubtitlesApiKeyLabel.setToolTipText("Your OpenSubtitles API Key");
+        panel3.add(openSubtitlesApiKeyLabel, new GridConstraints(4, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        openSubtitlesApiKeyField = new JTextField();
+        openSubtitlesApiKeyField.setToolTipText("");
+        panel3.add(openSubtitlesApiKeyField, new GridConstraints(4, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
     }
 
     /**
