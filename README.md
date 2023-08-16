@@ -23,8 +23,24 @@ console.log(`Now paste it in the addons settings at the "Encrypted password fiel
 #
 
 ~~for OpenSubtitles, you need a "developer" UserAgent: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst#Howtorequestanewuseragent~~
+~~no longer the case, you can login with both (developer useragent, or username(email)/password)~~
+as of 2023, you have to to use opensubtitles.com API Key, in combination with your username (NOT email) and password, to automate the downloads.
 
-no longer the case, you can login with both (developer useragent, or username(email)/password)
+#
+
+Screenshots:
+
+![s1](https://github.com/ntzb/HebSubDL/assets/1606302/5c81821a-b361-4a69-b856-dcba10f8fd47)
+![s2](https://github.com/ntzb/HebSubDL/assets/1606302/57041c56-4eab-4f09-b38e-cb02fb57ad98)
+![s3](https://github.com/ntzb/HebSubDL/assets/1606302/9935a42a-f98a-4cbd-a752-9a3f26bb5696)
+![s4](https://github.com/ntzb/HebSubDL/assets/1606302/a93a10ce-ab77-466a-8e72-c0de5faad503)
+
+#
+
+Advanced config.properties features:
+- `watch.directories`:  specify here comma separated paths (escape the backslash in Windows), to watch for changes, and when new file arrives, it will automatically add it to the queue
+- `watch.ignorekeywords`:  specify here comma separated words, for the watch feature to ignore, in the filenames
+- `log.level`:  specify here the wanted log level, i.e. `DEBUG`, if you want to submit issues
 
 #
 
