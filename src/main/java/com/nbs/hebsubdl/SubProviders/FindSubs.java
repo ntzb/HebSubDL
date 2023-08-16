@@ -16,13 +16,10 @@ public class FindSubs {
     static List<ISubProvider> providersList = new ArrayList<>(); //create a list of all providers to make iteration easy
 
     public static void initProviders() {
-        // these are hebrew only, don't search them unless hebrew
         providersList.add(new WizdomSubProvider());
         providersList.add(new KtuvitSubProvider());
-        OpensubtitlesNewSubProvider openSubtitles = new OpensubtitlesNewSubProvider();
-        if (openSubtitles.tokenValidity > 0) {
-            providersList.add(openSubtitles);
-        }
+        providersList.add(new OpensubtitlesNewSubProvider());
+
 
         providersList.forEach(provider -> {
             Logger.logger.info(String.format("provider %s added", getProviderName(provider)));

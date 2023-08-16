@@ -49,17 +49,6 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         this.apiKey = PropertiesClass.getOpenSubtitlesApiKey().trim();
         if (this.username.isEmpty() || this.password.isEmpty() || this.apiKey.isEmpty()) {
             Logger.logger.fine("one or more OpenSubtitles parameters are missing.");
-        } else {
-            try {
-                Logger.logger.fine("using OpenSubtitles new API.");
-                boolean isLogin = this.login();
-                while (!isLogin) {
-                    isLogin = this.login();
-                }
-                Logger.logger.info("OpenSubtitles logged in.");
-            } catch (IOException e) {
-                Logger.logger.severe("Caught exception in login. won't add OpenSubtitles provider.");
-            }
         }
     }
 
