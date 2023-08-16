@@ -29,6 +29,7 @@ public class KtuvitSubProvider implements ISubProvider {
     private DbAccess dbAccess;
     private String foundFilmID;
     private String chosenSubName;
+    boolean isHebrewOnly = true;
 
     @Override
     public String getChosenSubName() {
