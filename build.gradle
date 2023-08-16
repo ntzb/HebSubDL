@@ -55,9 +55,11 @@ jar {
     manifest {
         attributes "Main-Class": "com.nbs.hebsubdl.MainGUI"
     }
-//    from {
-//        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-//    }
+    // toggle comment the following loop to include/not include libraries in the JAR
+    // not including is for distributing compiled JRE for specific OS, and including is for distributing .jar file
+    from {
+        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
