@@ -13,13 +13,13 @@ import java.io.IOException;
 import java.util.*;
 
 public class FindSubs {
-    static List<ISubProvider> providersList = new ArrayList<>(); //create a list of all providers to make iteration easy
+    static List<ISubProvider> providersList = new ArrayList<>(); // create a list of all providers to make iteration
+                                                                 // easy
 
     public static void initProviders() {
         providersList.add(new WizdomSubProvider());
         providersList.add(new KtuvitSubProvider());
         providersList.add(new OpensubtitlesNewSubProvider());
-
 
         providersList.forEach(provider -> {
             Logger.logger.info(String.format("provider %s added", getProviderName(provider)));
@@ -44,15 +44,15 @@ public class FindSubs {
                 String[] titleWordsArray = mediaFile.getFileName().toLowerCase()
                         .replaceAll("dd.{0,2}(2.{0,2}(0|1))", "dd20")
                         .replaceAll("dd.{0,2}(5.{0,2}(0|1))", "dd50")
-                        .replace("web-dl","webdl")
-                        .replace("h.264","h264")
+                        .replace("web-dl", "webdl")
+                        .replace("h.264", "h264")
                         .replaceAll("_", " ")
                         .replaceAll("\\.", " ").replaceAll("-", " ").split(" ");
                 int maxTitleRating = titleWordsArray.length, maxRating = 0;
                 boolean didDownload = false;
-                //ISubProvider bestProvider = wizdomSubProvider;
+                // ISubProvider bestProvider = wizdomSubProvider;
 
-                //TODO: fix the duplicate providers lists, can handle with only one.
+                // TODO: fix the duplicate providers lists, can handle with only one.
                 class SubProviderScore {
                     ISubProvider subProvider;
                     Integer score;
@@ -81,7 +81,7 @@ public class FindSubs {
                 }
                 LinkedList<SubProviderScore> subProviderList = new LinkedList<>();
 
-                //String[] highestRatingSub = {"", ""};
+                // String[] highestRatingSub = {"", ""};
                 for (ISubProvider subProvider : providersList) {
 
                     if (!PropertiesClass.getLangSuffix().equals(".he") && subProvider.isHebrewOnly) {
@@ -92,12 +92,13 @@ public class FindSubs {
                     String provider = getProviderName(subProvider);
                     Logger.logger.fine("searching provider: " + provider);
 
-                    //iterate over list of providers and get the highest rating
+                    // iterate over list of providers and get the highest rating
                     String[] currentRatingSub = subProvider.getRating(mediaFile, titleWordsArray);
                     if (Integer.parseInt(currentRatingSub[1]) == maxTitleRating) {
-                        //full match, let's finish up
+                        // full match, let's finish up
                         model.setValueAt("downloading..", count, 1);
-                        Logger.logger.info(String.format("downloading sub from %s (%s)", provider, subProvider.getChosenSubName()));
+                        Logger.logger.info(String.format("downloading sub from %s (%s)", provider,
+                                subProvider.getChosenSubName()));
                         didDownload = subProvider.downloadSubFile(currentRatingSub[0], mediaFile);
                         if (didDownload) {
                             Logger.logger.info("sub downloaded!");
@@ -108,30 +109,36 @@ public class FindSubs {
                         }
                     } else {
                         // no full match, get the score
-                        SubProviderScore subProviderScore = new SubProviderScore(subProvider, Integer.parseInt(currentRatingSub[1]), currentRatingSub[0]);
+                        SubProviderScore subProviderScore = new SubProviderScore(subProvider,
+                                Integer.parseInt(currentRatingSub[1]), currentRatingSub[0]);
                         subProviderList.add(subProviderScore);
-                        Logger.logger.fine("score for the subtitle from provider " + provider + " is " + subProviderScore.score);
-                    /*if (Integer.parseInt(currentRatingSub[1]) > maxRating) {
-                        maxRating = Integer.parseInt(currentRatingSub[1]);
-                        bestProvider = subProvider;
-                        highestRatingSub = currentRatingSub;
-                    }*/
+                        Logger.logger.fine(
+                                "score for the subtitle from provider " + provider + " is " + subProviderScore.score);
+                        /*
+                         * if (Integer.parseInt(currentRatingSub[1]) > maxRating) {
+                         * maxRating = Integer.parseInt(currentRatingSub[1]);
+                         * bestProvider = subProvider;
+                         * highestRatingSub = currentRatingSub;
+                         * }
+                         */
                     }
                 }
                 if (!didDownload && !subProviderList.isEmpty()) {
                     Logger.logger.fine("sorting sub options by score.");
                     subProviderList.sort(new DescendingScoreComparator());
-                    //if (!highestRatingSub[0].trim().isEmpty()) {
+                    // if (!highestRatingSub[0].trim().isEmpty()) {
                     if (subProviderList.get(0).score > 0) {
-                        //no direct match - let's go with closest one
-                        //bestProvider.downloadSubFile(highestRatingSub[0], mediaFile);
+                        // no direct match - let's go with closest one
+                        // bestProvider.downloadSubFile(highestRatingSub[0], mediaFile);
 
-                        // try downloading from the first provider, if it fails, try the second one... etc.
+                        // try downloading from the first provider, if it fails, try the second one...
+                        // etc.
                         for (SubProviderScore subProviderScore : subProviderList) {
                             String provider = getProviderName(subProviderScore.subProvider);
 
                             if (subProviderScore.subProvider.downloadSubFile(subProviderScore.id, mediaFile)) {
-                                Logger.logger.info(String.format("downloaded sub from %s! (%s)", provider, subProviderScore.subProvider.getChosenSubName()));
+                                Logger.logger.info(String.format("downloaded sub from %s! (%s)", provider,
+                                        subProviderScore.subProvider.getChosenSubName()));
                                 model.setValueAt("success!", count, 1);
                                 MainGUI.fitColumns(jTable);
                                 count++;
@@ -166,9 +173,10 @@ public class FindSubs {
     }
 
     public static boolean subAlreadyExists(MediaFile mediaFile) {
-        final String[] allowedSubExtensions = {"srt", "sub"};
+        final String[] allowedSubExtensions = { "srt", "sub" };
         for (String extension : allowedSubExtensions) {
-            String subFile = String.format("%s/%s%s.%s", mediaFile.getPathName(), FilenameUtils.removeExtension(mediaFile.getOriginalFileName()),
+            String subFile = String.format("%s/%s%s.%s", mediaFile.getPathName(),
+                    FilenameUtils.removeExtension(mediaFile.getOriginalFileName()),
                     PropertiesClass.getLangSuffix(), extension);
             File newSubFile = new File(subFile);
             if (newSubFile.exists())
