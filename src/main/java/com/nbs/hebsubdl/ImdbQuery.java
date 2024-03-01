@@ -33,13 +33,16 @@ public class ImdbQuery {
                     continue;
                 } else {
                     String currentImdbId = null;
-                    int minScore = 100; // small enough
+                    double minScore = 100; // small enough
+                    int i = -1;
                     for (ImdbJson.ImdbJsonArray item : response.getD()) {
+                        i++;
                         boolean isMovie = mediaFile.getSeason() == "0" && mediaFile.getEpisode() == "0";
                         if (item.getQid() == null || (isMovie != item.isMovie))
                             continue;
                         String imdbTitle = item.getL().toLowerCase();
-                        int score = StringDistance.calculate(mediaFile.getTitle(), imdbTitle);
+                        double score = Math.pow(1.2, i)
+                                * StringDistance.calculate(mediaFile.getTitle(), imdbTitle);
 
                         if (score < minScore) {
                             minScore = score;
