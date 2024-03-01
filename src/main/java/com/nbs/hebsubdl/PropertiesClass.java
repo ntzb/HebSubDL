@@ -43,7 +43,7 @@ public class PropertiesClass {
                 }
                 case "openSubtitlesUserAgent" -> {
                     setOpenSubtitlesUserAgent(value);
-                    prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
+                    prop.setProperty("opensubtitles.useragent", getOpenSubtitlesUserAgent());
                 }
                 case "openSubtitlesUsername" -> {
                     setOpenSubtitlesUsername(value);
@@ -112,7 +112,7 @@ public class PropertiesClass {
                     }
                     case "openSubtitlesUserAgent" -> {
                         setOpenSubtitlesUserAgent(properties.get(key));
-                        prop.setProperty("opensubtitles.useragnet", getOpenSubtitlesUserAgent());
+                        prop.setProperty("opensubtitles.useragent", getOpenSubtitlesUserAgent());
                     }
                     case "openSubtitlesUsername" -> {
                         setOpenSubtitlesUsername(properties.get(key));
@@ -153,7 +153,7 @@ public class PropertiesClass {
     }
 
     public static void readProperties() {
-        //try (InputStream inputStream = new FileInputStream("config.properties")) {
+        // try (InputStream inputStream = new FileInputStream("config.properties")) {
         FileInputStream fileIn = null;
         try {
             File propFile = new File("config.properties");
@@ -166,17 +166,14 @@ public class PropertiesClass {
             setKtuvitPassword(properties.getProperty("ktuvit.password"));
             setKtuvitUsername(properties.getProperty("ktuvit.username"));
             setLangSuffix(properties.getProperty("language.suffix"));
-            // open subtitles useragent - if it's empty, use "TemporaryUserAgent" and decide later between this login and alternate login
-            String useragent = properties.getProperty("opensubtitles.useragnet");
-            setOpenSubtitlesUserAgent((useragent == null || useragent.trim().isEmpty()) ? "TemporaryUserAgent" : useragent);
             setOpenSubtitlesUsername(properties.getProperty("opensubtitles.username"));
             setOpenSubtitlesPassword(properties.getProperty("opensubtitles.password"));
             setOpenSubtitlesApiKey(properties.getProperty("opensubtitles.apikey"));
+            setOpenSubtitlesUserAgent(properties.getProperty("opensubtitles.useragent"));
             setLogLevel(properties.getProperty("log.level"));
             setWatchDirectories(properties.getProperty("watch.directories"));
             setWatchIgnoreKeywords(properties.getProperty("watch.ignorekeywords"));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Logger.logException(e, "reading properties file");
         } finally {
             try {
