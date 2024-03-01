@@ -30,6 +30,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     private URL queryURL;
     private String language;
     private String apiKey;
+    private String userAgent;
     private String username;
     private String password;
     private String token;
@@ -47,7 +48,8 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         this.username = PropertiesClass.getOpenSubtitlesUsername().trim();
         this.password = PropertiesClass.getOpenSubtitlesPassword().trim();
         this.apiKey = PropertiesClass.getOpenSubtitlesApiKey().trim();
-        if (this.username.isEmpty() || this.password.isEmpty() || this.apiKey.isEmpty()) {
+        this.userAgent = PropertiesClass.getOpenSubtitlesUserAgent().trim();
+        if (this.username.isEmpty() || this.password.isEmpty() || this.apiKey.isEmpty() || this.userAgent.isEmpty()) {
             Logger.logger.fine("one or more OpenSubtitles parameters are missing.");
         }
     }
@@ -77,9 +79,10 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     private HashMap<String, String> getBasicHeaders() {
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Accept", "application/json");
-//        headers.put("User-Agent", "HebSubDL v1.2.0");
+        // headers.put("User-Agent", "HebSubDL v1.2.0");
         headers.put("Content-Type", "application/json");
         headers.put("Api-Key", this.apiKey);
+        headers.put("User-Agent", this.userAgent);
         return headers;
     }
 
@@ -101,14 +104,16 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
         String inputLine;
         StringBuilder content = new StringBuilder();
-        while ((inputLine = in.readLine()) != null) content.append(inputLine);
+        while ((inputLine = in.readLine()) != null)
+            content.append(inputLine);
         in.close();
         JSONParser jsonParser = new JSONParser();
         JSONObject obj;
         try {
             obj = (JSONObject) jsonParser.parse(content.toString());
             Logger.logger.fine("got login result: " + obj.toJSONString());
-            if ((long) obj.get("status") != 200) return false;
+            if ((long) obj.get("status") != 200)
+                return false;
             // save the token and the validity time
             this.token = obj.get("token").toString();
             this.tokenValidity = Instant.now().getEpochSecond() + 24 * 60 * 60 - 60; // 24 hours minus 1 minute
@@ -125,8 +130,9 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
 
     public void setLanguage(String language) {
         if (language.length() != 2) {
-            Logger.logger.warning(String.format("expected 2 letter language code, but got %d letter language (code): %s," +
-                    "will default to Hebrew.", language.length(), language));
+            Logger.logger
+                    .warning(String.format("expected 2 letter language code, but got %d letter language (code): %s," +
+                            "will default to Hebrew.", language.length(), language));
             this.language = "he";
         } else {
             this.language = language;
@@ -159,7 +165,8 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         StringBuilder url = new StringBuilder(base).append(path).append("?");
         AtomicInteger paramIndex = new AtomicInteger();
         queryParams.forEach((key, val) -> {
-            if (paramIndex.get() > 0) url.append("&");
+            if (paramIndex.get() > 0)
+                url.append("&");
             url.append(key).append("=").append(val.replace(" ", "%20"));
             paramIndex.getAndIncrement();
         });
@@ -173,10 +180,12 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         String filename = mediaFile.getFileName().toLowerCase();
         String episode = mediaFile.getEpisode();
         String year = mediaFile.getYear(); // should we use it?
-        HashMap<String, String> queryParams = new HashMap<>() {{
-            put("ai_translated", "exclude");
-            put("languages", getLanguage());
-        }};
+        HashMap<String, String> queryParams = new HashMap<>() {
+            {
+                put("ai_translated", "exclude");
+                put("languages", getLanguage());
+            }
+        };
         if (!imdbID.isEmpty())
             queryParams.put("imdb_id", imdbID);
         else
@@ -202,13 +211,15 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         }
 
         int status = con.getResponseCode();
-        if (status != 200) return null;
+        if (status != 200)
+            return null;
 
         // check for error in login
         BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
         String inputLine;
         StringBuilder content = new StringBuilder();
-        while ((inputLine = in.readLine()) != null) content.append(inputLine);
+        while ((inputLine = in.readLine()) != null)
+            content.append(inputLine);
         in.close();
 
         return content.toString();
@@ -237,13 +248,13 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
             status = con.getResponseCode();
             BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
             String inputLine;
-            while ((inputLine = in.readLine()) != null) content.append(inputLine);
+            while ((inputLine = in.readLine()) != null)
+                content.append(inputLine);
             in.close();
         } catch (IOException e) {
             Logger.logger.severe("failed getting response from OpenSubtitles");
             return null;
         }
-
 
         if (status != 200) {
             Logger.logger.severe("login failed, error code is " + status + ", content is: " + content);
@@ -276,8 +287,8 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         File subFile = new File(String.format("%s/%s.%s", mediaFile.getPathName(),
                 mediaFile.getFileName(), subtitleExtension));
 
-        try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); //try with resources
-             FileOutputStream fos = new FileOutputStream(subFile)) {
+        try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); // try with resources
+                FileOutputStream fos = new FileOutputStream(subFile)) {
             long bytesTransferred = fos.getChannel().transferFrom(rbc, 0, 1000000);
             if (bytesTransferred == 0)
                 return false;
@@ -291,7 +302,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     @Override
     public String[] getRating(MediaFile mediaFile, String[] titleWordsArray) throws IOException {
         setLanguage(PropertiesClass.getLangSuffix().replace(".", ""));
-        String[] ratingResponseArray = {"0", "0"};
+        String[] ratingResponseArray = { "0", "0" };
         if (!this.isTokenValid()) {
             Logger.logger.info("OpenSubtitles not logged in, or token no longer valid");
             int tries = 5;
@@ -300,7 +311,8 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
                 Logger.logger.severe("failed OpenSubtitles login, remaining tries: " + --tries);
                 isLogin = this.login();
             }
-            if (!isLogin) return ratingResponseArray;
+            if (!isLogin)
+                return ratingResponseArray;
         }
         setIsMovie(mediaFile.getEpisode());
         generateQueryURL(mediaFile);
@@ -337,8 +349,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
                     .replaceAll("dd.{0,2}(2.{0,2}(0|1))", "dd20")
                     .replaceAll("dd.{0,2}(5.{0,2}(0|1))", "dd50")
                     .replace("web-dl", "webdl")
-                    .replaceAll("_", " ").replaceAll
-                            ("\\.", " ").replaceAll("-", " ").split(" ");
+                    .replaceAll("_", " ").replaceAll("\\.", " ").replaceAll("-", " ").split(" ");
             int rating = 0;
             // bonus for english search
             if (this.language.equals("eng")) {
@@ -356,7 +367,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
                 chosenSubName = result.release;
             }
         }
-        String[] titleRatingResponse = {highestRatingLink, String.valueOf(maxRating)};
+        String[] titleRatingResponse = { highestRatingLink, String.valueOf(maxRating) };
         return titleRatingResponse;
     }
 
