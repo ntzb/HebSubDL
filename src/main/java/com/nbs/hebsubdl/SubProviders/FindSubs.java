@@ -17,6 +17,7 @@ public class FindSubs {
                                                                  // easy
 
     public static void initProviders() {
+        Logger.logger.finer("initializing providers");
         providersList.add(new WizdomSubProvider());
         providersList.add(new KtuvitSubProvider());
         providersList.add(new OpensubtitlesNewSubProvider());
@@ -79,18 +80,19 @@ public class FindSubs {
                         return o2.getScore().compareTo(o1.getScore());
                     }
                 }
-                LinkedList<SubProviderScore> subProviderList = new LinkedList<>();
 
+                LinkedList<SubProviderScore> subProviderList = new LinkedList<>();
                 // String[] highestRatingSub = {"", ""};
                 for (ISubProvider subProvider : providersList) {
+                    Logger.logger.finer("getting provider name");
+                    String provider = getProviderName(subProvider);
+                    Logger.logger.fine("searching provider: " + provider);
 
                     if (!PropertiesClass.getLangSuffix().equals(".he") && subProvider.isHebrewOnly) {
+                        Logger.logger.fine("provider " + provider + " skipped since it's hebrew only");
                         // if it's not hebrew, and the provider is hebrew only, skip the provider
                         continue;
                     }
-
-                    String provider = getProviderName(subProvider);
-                    Logger.logger.fine("searching provider: " + provider);
 
                     // iterate over list of providers and get the highest rating
                     String[] currentRatingSub = subProvider.getRating(mediaFile, titleWordsArray);
@@ -162,6 +164,12 @@ public class FindSubs {
                         MainGUI.fitColumns(jTable);
                         count++;
                     }
+                } else if (!didDownload) {
+                    // no match at all
+                    Logger.logger.warning("failed - no providers available.");
+                    model.setValueAt("failed - no providers available.", count, 1);
+                    MainGUI.fitColumns(jTable);
+                    count++;
                 }
             } catch (Exception e) {
                 model.setValueAt("failed - error during search.", count, 1);
@@ -186,6 +194,7 @@ public class FindSubs {
     }
 
     private static String getProviderName(ISubProvider subProvider) {
+        Logger.logger.finer("in getProviderName");
         String providerFullClassName = subProvider.getClass().toString().replace("SubProvider", "");
         String provider = providerFullClassName.substring(providerFullClassName.lastIndexOf('.') + 1);
         return provider;

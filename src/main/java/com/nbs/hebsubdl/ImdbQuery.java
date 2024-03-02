@@ -49,8 +49,12 @@ public class ImdbQuery {
                             currentImdbId = item.getId();
                         }
                     }
-                    if (currentImdbId == null || currentImdbId.isEmpty())
+                    if (currentImdbId == null || currentImdbId.isEmpty()) {
                         currentImdbId = response.getD()[0].getId();
+                        Logger.logger.warning("couldn't find direct imdb id match, going for " + currentImdbId);
+                    } else {
+                        Logger.logger.fine("found imdb id " + currentImdbId);
+                    }
                     // make sure we are getting correct imdbid for our query. a valid imdb id is
                     // ttXXXXXXX, but I'm not sure
                     // how many integers it will be in the future.

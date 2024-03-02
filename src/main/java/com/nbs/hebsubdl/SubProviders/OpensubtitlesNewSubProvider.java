@@ -52,6 +52,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         if (this.username.isEmpty() || this.password.isEmpty() || this.apiKey.isEmpty() || this.userAgent.isEmpty()) {
             Logger.logger.fine("one or more OpenSubtitles parameters are missing.");
         }
+        Logger.logger.fine("OS provider constructed");
     }
 
     private HttpURLConnection initConnection(String type, URL url, String data, HashMap<String, String> headers) {
