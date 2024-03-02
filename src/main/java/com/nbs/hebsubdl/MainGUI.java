@@ -87,8 +87,10 @@ public class MainGUI {
         }
         List<String> dirs = Arrays.stream(watchDirs.split(",")).collect(Collectors.toList());
         try {
-            if (dirs.size() > 0)
-                new WatchDir(dirs, true, frame, mainGUI.filesTable).processEvents();
+            if (dirs.size() > 0) {
+                WatchDir watchDir = new WatchDir(dirs, true, frame, mainGUI.filesTable);
+                new Thread(watchDir::run).start();
+            }
         } catch (NoSuchFileException e) {
             Logger.logSevereAndExitWithError(String.format("directory asked to watch doesn't exists: %s, " +
                     "did you forget to use double backslash in the config file?", e.getMessage()));

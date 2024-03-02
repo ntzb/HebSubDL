@@ -93,7 +93,7 @@ public class WatchDir {
     /**
      * Process all events for keys queued to the watcher
      */
-    void processEvents() {
+    public void run() {
         for (;;) {
 
             // wait for key to be signalled
