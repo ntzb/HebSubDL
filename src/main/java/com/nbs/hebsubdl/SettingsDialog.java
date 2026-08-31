@@ -1,5 +1,6 @@
 package com.nbs.hebsubdl;
 
+import com.nbs.hebsubdl.SubProviders.FindSubs;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
@@ -73,6 +74,9 @@ public class SettingsDialog extends JDialog {
         String openSubtitlesApiKey = new String(openSubtitlesApiKeyField.getText().trim());
         String openSubtitlesUserAgent = new String(openSubtitlesUserAgentField.getText().trim());
 
+        boolean ktuvitChanged = !ktuvitUsername.equals(PropertiesClass.getKtuvitUsername())
+                || !ktuvitPassword.equals(PropertiesClass.getKtuvitPassword());
+
         HashMap<String, String> properties = new HashMap<>();
         properties.put("ktuvitUsername", ktuvitUsername);
         properties.put("ktuvitPassword", ktuvitPassword);
@@ -82,6 +86,10 @@ public class SettingsDialog extends JDialog {
         properties.put("openSubtitlesApiKey", openSubtitlesApiKey);
         properties.put("openSubtitlesUserAgent", openSubtitlesUserAgent);
         PropertiesClass.writeProperties(properties);
+
+        if (ktuvitChanged)
+            new DbAccess().clearLogin();
+        FindSubs.reinitProviders();
 
         dispose();
     }

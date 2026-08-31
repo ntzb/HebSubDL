@@ -39,6 +39,12 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     private String baseURL = "https://api.opensubtitles.com/api/v1";
     long tokenValidity = 0;
 
+    static final int LOGIN_OK = 200;
+    static final int LOGIN_NO_CONNECTION = -1;
+    static final int LOGIN_BAD_RESPONSE = -2;
+    static final int LOGIN_MAX_ATTEMPTS = 3;
+    static final long LOGIN_RETRY_BASE_MS = 1000;
+
     @Override
     public String getChosenSubName() {
         return chosenSubName;
@@ -87,18 +93,18 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         return headers;
     }
 
-    private boolean login() throws IOException {
+    private int login() throws IOException {
         URL url = new URL(this.baseURL + "/login");
         String data = "{\"username\":\"" + this.username + "\",\"password\":\"" + this.password + "\"}";
         HashMap<String, String> headers = getBasicHeaders();
         HttpURLConnection con = initConnection("POST", url, data, headers);
         if (con == null)
-            return false;
+            return LOGIN_NO_CONNECTION;
 
         int status = con.getResponseCode();
         if (status != 200) {
             Logger.logger.severe("login failed, error code is " + status);
-            return false;
+            return status;
         }
 
         // check for error in login
@@ -113,16 +119,50 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         try {
             obj = (JSONObject) jsonParser.parse(content.toString());
             Logger.logger.fine("got login result: " + obj.toJSONString());
-            if ((long) obj.get("status") != 200)
-                return false;
+            Object bodyStatus = obj.get("status");
+            if (bodyStatus instanceof Long && (Long) bodyStatus != 200L)
+                return ((Long) bodyStatus).intValue();
             // save the token and the validity time
             this.token = obj.get("token").toString();
             this.tokenValidity = Instant.now().getEpochSecond() + 24 * 60 * 60 - 60; // 24 hours minus 1 minute
         } catch (ParseException e) {
             Logger.logException(e, "parsing login response from Open Subtitles");
-            return false;
+            return LOGIN_BAD_RESPONSE;
         }
-        return true;
+        return LOGIN_OK;
+    }
+
+    // A 401/403 means the credentials are wrong; hammering it only earns a 429
+    // that then blocks the next legitimate attempt.
+    static boolean isTransientLoginFailure(int status) {
+        return status == LOGIN_NO_CONNECTION || status == 429 || status >= 500;
+    }
+
+    private boolean loginWithRetries() throws IOException {
+        long delayMs = LOGIN_RETRY_BASE_MS;
+        for (int attempt = 1; attempt <= LOGIN_MAX_ATTEMPTS; attempt++) {
+            int status = login();
+            if (status == LOGIN_OK)
+                return true;
+            if (!isTransientLoginFailure(status)) {
+                Logger.logger.severe("OpenSubtitles login failed with " + status
+                        + " - not retrying, check the credentials");
+                return false;
+            }
+            if (attempt == LOGIN_MAX_ATTEMPTS)
+                break;
+            Logger.logger.warning("OpenSubtitles login failed with " + status
+                    + ", retrying in " + delayMs + "ms");
+            try {
+                Thread.sleep(delayMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            delayMs *= 2;
+        }
+        Logger.logger.severe("OpenSubtitles login gave up after " + LOGIN_MAX_ATTEMPTS + " attempts");
+        return false;
     }
 
     public String getLanguage() {
@@ -306,13 +346,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         String[] ratingResponseArray = { "0", "0" };
         if (!this.isTokenValid()) {
             Logger.logger.info("OpenSubtitles not logged in, or token no longer valid");
-            int tries = 5;
-            boolean isLogin = this.login();
-            while (!isLogin && tries > 0) {
-                Logger.logger.severe("failed OpenSubtitles login, remaining tries: " + --tries);
-                isLogin = this.login();
-            }
-            if (!isLogin)
+            if (!loginWithRetries())
                 return ratingResponseArray;
         }
         setIsMovie(mediaFile.getEpisode());

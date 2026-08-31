@@ -80,6 +80,24 @@ public class DbAccess {
         }
     }
 
+    // the cookie outlives a credential change, and it is stored on disk, so it
+    // survives a restart too - without this, new Ktuvit credentials do nothing
+    // until the old session expires
+    public boolean clearLogin() {
+        if (this.getConn() == null && !openOrCreateDB("db.sqlite"))
+            return false;
+        try (Statement stmt = this.getConn().createStatement()) {
+            stmt.execute("DELETE FROM login");
+            this.cookie = null;
+            this.validUntil = 0;
+            Logger.logger.info("cleared the stored Ktuvit login");
+            return true;
+        } catch (SQLException e) {
+            Logger.logException(e, "clearing the stored Ktuvit login.");
+            return false;
+        }
+    }
+
     public boolean isCookieValid() {
         long currentTime = System.currentTimeMillis()/1000;
         return (this.validUntil + this.operationTime < currentTime);
