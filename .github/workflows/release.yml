@@ -1,0 +1,163 @@
+name: release
+
+# Builds every artifact and publishes a release, but only when the version in
+# build.gradle actually changed on master. Merging a PR that does not touch the
+# version is a no-op, so ordinary merges stay cheap.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: build and release even without a version change
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@main
+        with:
+          fetch-depth: 2          # need the previous commit to diff against
+
+      - id: check
+        shell: bash
+        run: |
+          version=$(sed -n "s/^version *'\([^']*\)'.*/\1/p" build.gradle)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "forced: building $version"
+          elif git rev-parse HEAD^ >/dev/null 2>&1 \
+               && git diff HEAD^ HEAD --quiet -- build.gradle; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "build.gradle untouched, nothing to release"
+          else
+            previous=$(git show HEAD^:build.gradle 2>/dev/null | sed -n "s/^version *'\([^']*\)'.*/\1/p" || echo none)
+            if [ "$previous" = "$version" ]; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "build.gradle changed but version is still $version"
+            else
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "version $previous -> $version"
+            fi
+          fi
+
+      - name: refuse to overwrite an existing release
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.check.outputs.version }}" >/dev/null 2>&1; then
+            echo "::error::v${{ steps.check.outputs.version }} already exists - bump the version"
+            exit 1
+          fi
+
+  build:
+    needs: version
+    if: needs.version.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+          - os: windows-latest
+            name: windows
+          - os: macos-latest
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@main
+
+      # Two JDKs on purpose. The build targets 14 so the portable exe runs on
+      # the widest range of machines, but JDK 14's jpackage is an incubator
+      # build that litters the app image with 40 UCRT DLLs - build.gradle
+      # resolves a 17 toolchain for jpackage alone. Temurin has no 14 (EOL,
+      # they went 11 -> 16), hence Zulu for that one.
+      - uses: actions/setup-java@main
+        with:
+          distribution: zulu
+          java-version: '14'
+      - uses: actions/setup-java@main
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: build and test
+        shell: bash
+        run: ./gradlew build --no-daemon
+
+      - name: native installer
+        shell: bash
+        run: ./gradlew jpackage --no-daemon
+
+      - name: portable exe
+        if: matrix.name == 'windows'
+        shell: bash
+        run: ./gradlew createExe --no-daemon
+
+      # The fat jar runs anywhere with a JRE, so publish it once rather than
+      # three identical copies.
+      - name: collect
+        shell: bash
+        run: |
+          mkdir -p out
+          cp build/jpackage/*.exe build/jpackage/*.msi build/jpackage/*.deb \
+             build/jpackage/*.dmg \
+             build/launch4j/*.exe out/ 2>/dev/null || true
+          if [ "${{ matrix.name }}" = "linux" ]; then
+            cp build/libs/HebSubDL-${{ needs.version.outputs.version }}.jar out/
+            tar -C build/jpackage -czf \
+              out/HebSubDL-${{ needs.version.outputs.version }}-linux-app-image.tar.gz HebSubDL
+          fi
+          ls -la out/
+
+      - uses: actions/upload-artifact@main
+        with:
+          name: ${{ matrix.name }}
+          path: out/
+          if-no-files-found: error
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@main
+        with:
+          path: artifacts
+      - shell: bash
+        run: |
+          mkdir -p release && find artifacts -type f -exec cp {} release/ \;
+          ls -la release/
+
+      - uses: softprops/action-gh-release@master
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: HebSubDL ${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          files: release/*
+          body: |
+            ## Which download
+
+            | File | For |
+            |---|---|
+            | `HebSubDL-*.exe` | Windows installer |
+            | `HebSubDL-*.msi` | Windows installer, MSI for scripted deployment |
+            | `HebSubDL-*-portable.exe` | Windows, no install - needs Java 14+ installed |
+            | `HebSubDL_*.deb` | Debian / Ubuntu |
+            | `HebSubDL-*.dmg` | macOS - unsigned, so right-click Open the first time |
+            | `HebSubDL-*-linux-app-image.tar.gz` | Linux, no install, bundled runtime |
+            | `HebSubDL-*.jar` | Any OS with Java 14+ - `java -jar HebSubDL-*.jar` |
+
+            The installers and the app image bundle their own Java runtime.
+            The jar and the portable exe do not.
