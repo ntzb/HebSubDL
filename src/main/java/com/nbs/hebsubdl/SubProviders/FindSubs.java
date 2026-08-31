@@ -16,6 +16,15 @@ public class FindSubs {
     static List<ISubProvider> providersList = new ArrayList<>(); // create a list of all providers to make iteration
                                                                  // easy
 
+    // Providers read their credentials in the constructor and cache tokens for
+    // hours, so the list has to be rebuilt when settings change or the old
+    // values stay live until the app is restarted.
+    public static void reinitProviders() {
+        Logger.logger.info("credentials changed, rebuilding providers");
+        providersList.clear();
+        initProviders();
+    }
+
     public static void initProviders() {
         Logger.logger.finer("initializing providers");
         providersList.add(new WizdomSubProvider());
