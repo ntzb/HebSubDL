@@ -48,6 +48,8 @@ public class KtuvitSubProvider implements ISubProvider {
             }
             String type = mediaFile.getEpisode().equals("0") ? "0" : "1";
             this.foundFilmID = initialSearch(type, mediaFile.getTitle(), mediaFile.getYear(), mediaFile.getImdbId());
+            if (this.foundFilmID == null)
+                return ratingResponseArray;
             HashMap<String, String> foundSubs = subSearch(type, this.foundFilmID, mediaFile.getSeason(), mediaFile.getEpisode());
             ratingResponseArray = getTitleRating(foundSubs, titleWordsArray);
         } catch (Exception e) {
@@ -147,17 +149,76 @@ public class KtuvitSubProvider implements ISubProvider {
         try {
             obj = (JSONObject) jsonParser.parse(response.toString());
             obj = (JSONObject) jsonParser.parse(obj.get("d").toString());
-            for (int i = 0; i < ((JSONArray) obj.get("Films")).size(); i++) {
-                String responseImdbID = ((JSONObject) ((JSONArray) obj.get("Films")).get(i)).get("ImdbID").toString();
-                if (responseImdbID.equals(imdbId)) {
-                    return ((JSONObject) ((JSONArray) obj.get("Films")).get(i)).get("ID").toString();
+            JSONArray films = (JSONArray) obj.get("Films");
+            StringBuilder seen = new StringBuilder();
+            for (Object filmObj : films) {
+                JSONObject film = (JSONObject) filmObj;
+                String filmImdbId = imdbIdOf(film);
+                seen.append(filmImdbId).append("/").append(nameOf(film)).append(" ");
+                if (imdbMatches(filmImdbId, imdbId))
+                    return film.get("ID").toString();
+            }
+            for (Object filmObj : films) {
+                JSONObject film = (JSONObject) filmObj;
+                if (nameAndYearMatch(film, title, year)) {
+                    Logger.logger.info("Ktuvit: no imdb match, falling back to name+year for " + nameOf(film));
+                    return film.get("ID").toString();
                 }
             }
+            Logger.logger.warning("Ktuvit: no match for imdb id '" + imdbId + "', title '" + title
+                    + "', year '" + year + "'. candidates: " + (seen.length() == 0 ? "(none)" : seen.toString().trim()));
         } catch (ParseException e) {
             Logger.logException(e, "parsing JSON response for getting movie ID in Ktuvit");
             return null;
         }
         return null;
+    }
+
+    // Ktuvit's ImdbID column holds 9 chars, so tt+8-digit ids arrive truncated
+    // (tt13406094 -> tt1340609). IMDB_Link carries the full id.
+    static String imdbIdOf(JSONObject film) {
+        Object link = film.get("IMDB_Link");
+        if (link != null) {
+            Matcher matcher = Pattern.compile("(tt\\d+)").matcher(link.toString());
+            if (matcher.find())
+                return matcher.group(1);
+        }
+        Object id = film.get("ImdbID");
+        return id == null ? "" : id.toString();
+    }
+
+    static boolean imdbMatches(String theirs, String ours) {
+        if (theirs == null || ours == null || theirs.isEmpty() || ours.isEmpty())
+            return false;
+        return theirs.equals(ours) || (ours.length() > theirs.length() && ours.startsWith(theirs));
+    }
+
+    static String nameOf(JSONObject film) {
+        Object eng = film.get("EngName");
+        if (eng != null && !eng.toString().isEmpty())
+            return eng.toString();
+        Object heb = film.get("HebName");
+        return heb == null ? "" : heb.toString();
+    }
+
+    static String normalize(String s) {
+        return s == null ? "" : s.toLowerCase().replaceAll("[^\\p{L}\\p{N}]", "");
+    }
+
+    static boolean nameAndYearMatch(JSONObject film, String title, String year) {
+        String wanted = normalize(title);
+        if (wanted.isEmpty())
+            return false;
+        if (!wanted.equals(normalize(nameOf(film))) && !wanted.equals(normalize(strOf(film.get("HebName")))))
+            return false;
+        if (year == null || year.isEmpty())
+            return true;
+        String released = strOf(film.get("ReleaseDate"));
+        return released.isEmpty() || released.startsWith(year);
+    }
+
+    static String strOf(Object o) {
+        return o == null ? "" : o.toString();
     }
 
     private HashMap<String, String> getBasicHeaders() {
