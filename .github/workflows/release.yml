@@ -74,6 +74,12 @@ jobs:
             name: windows
           - os: macos-latest
             name: macos
+            # JDK 14 predates Apple Silicon and no vendor ships an aarch64 build
+            # of it, so this one compiles on 17. Nothing regresses: macOS only
+            # publishes the dmg, which bundles its own runtime. The artifacts
+            # that must run on an old JRE - the jar and the portable exe - come
+            # from the linux and windows jobs, which still build on 14.
+            gradleArgs: -PjavaToolchain=17
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@main
@@ -83,7 +89,11 @@ jobs:
       # build that litters the app image with 40 UCRT DLLs - build.gradle
       # resolves a 17 toolchain for jpackage alone. Temurin has no 14 (EOL,
       # they went 11 -> 16), hence Zulu for that one.
+      #
+      # setup-java writes ~/.m2/toolchains.xml, which is how Gradle's toolchain
+      # resolution finds both of them.
       - uses: actions/setup-java@main
+        if: matrix.name != 'macos'
         with:
           distribution: zulu
           java-version: '14'
@@ -95,16 +105,16 @@ jobs:
 
       - name: build and test
         shell: bash
-        run: ./gradlew build --no-daemon
+        run: ./gradlew build --no-daemon ${{ matrix.gradleArgs }}
 
       - name: native installer
         shell: bash
-        run: ./gradlew jpackage --no-daemon
+        run: ./gradlew jpackage --no-daemon ${{ matrix.gradleArgs }}
 
       - name: portable exe
         if: matrix.name == 'windows'
         shell: bash
-        run: ./gradlew createExe --no-daemon
+        run: ./gradlew createExe --no-daemon ${{ matrix.gradleArgs }}
 
       # The fat jar runs anywhere with a JRE, so publish it once rather than
       # three identical copies.
