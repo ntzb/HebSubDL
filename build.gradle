@@ -2,10 +2,11 @@ plugins {
     id 'java'
     id 'application'
     id 'org.beryx.runtime' version '1.12.5'
+    id 'edu.sc.seis.launch4j' version '4.0.0'
 }
 
 group 'com.nbs'
-version '2.1.0'
+version '2.3.0'
 
 java {
     toolchain {
@@ -63,6 +64,23 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
+// Wraps the fat jar produced by the `jar` task into a single portable .exe that
+// runs on the system-installed JRE (no bundled runtime -- that is what `jpackage` does).
+// Task: ./gradlew createExe  ->  build/launch4j/HebSubDL-<version>-portable.exe
+launch4j {
+    outfile = "HebSubDL-${project.version}-portable.exe"
+    mainClassName = 'com.nbs.hebsubdl.MainGUI'
+    jarTask = tasks.jar         // the fat jar, with all dependencies already inside
+    dontWrapJar = false         // embed that jar INSIDE the exe -> one portable file
+    copyConfigurable = []       // fat jar is self-contained; don't emit a lib/ folder
+    headerType = 'gui'          // Swing app: no console window
+    jreMinVersion = '14'
+    errTitle = 'HebSubDL'
+    downloadUrl = 'https://adoptium.net/temurin/releases/'
+    messagesJreNotFoundError = 'HebSubDL requires Java 14 or newer, but no Java runtime was found. Please install Java 14+ and run this again.'
+    messagesJreVersionError = 'HebSubDL requires Java 14 or newer. The Java runtime found on this machine is too old. Please install Java 14+ and run this again.'
+}
+
 runtime {
     options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
 
@@ -76,6 +94,14 @@ runtime {
         noConsole = true
     }
     jpackage {
+        // JDK 14's jpackage is an incubator build and copies 40 UCRT DLLs into
+        // the image root; 16+ omits them. Resolved, not hardcoded - falls back
+        // to the toolchain JDK if no newer one is installed.
+        def modern = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+        if (modern.isPresent())
+            jpackageHome = modern.get().metadata.installationPath.asFile.absolutePath
         // Uncomment and adjust the following line if your runtime task is configured to generate images for multiple platforms
         // targetPlatformName = "mac"
 
