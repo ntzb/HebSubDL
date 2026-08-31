@@ -43,7 +43,7 @@ public class MainGUI {
 
     public static void main(String[] args) {
         Logger.initLogger();
-        Logger.logger.info("Starting app.");
+        Logger.logger.info("Starting app, version " + AppVersion.get() + ".");
         MainGUI mainGUI = new MainGUI();
         JFrame frame = new JFrame("HebSubDL");
         frame.setContentPane(mainGUI.mainPanel);
@@ -257,13 +257,17 @@ public class MainGUI {
             // set tray icon
             Image image = Toolkit.getDefaultToolkit().getImage(MainGUI.class.getResource("/sub_icon.png"));
 
-            // set right click options - open and exit
+            // set right click options - open, about and exit
             PopupMenu popup = new PopupMenu();
             MenuItem defaultItem = new MenuItem("Open");
             defaultItem.addActionListener(e -> {
                 frame.setVisible(true);
                 frame.setExtendedState(JFrame.NORMAL);
             });
+            popup.add(defaultItem);
+
+            defaultItem = new MenuItem("About");
+            defaultItem.addActionListener(e -> AboutDialog.show(frame));
             popup.add(defaultItem);
 
             defaultItem = new MenuItem("Exit");
