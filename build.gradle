@@ -8,9 +8,14 @@ plugins {
 group 'com.nbs'
 version '2.3.1'
 
+// 14 keeps the jar and the portable exe runnable on the oldest JRE we claim to
+// support. Apple Silicon has no JDK 14 - it predates the port - so the macOS
+// build overrides this, and loses nothing, since its installer bundles a runtime.
+def toolchainVersion = (findProperty('javaToolchain') ?: '14') as int
+
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(14)
+        languageVersion = JavaLanguageVersion.of(toolchainVersion)
     }
 
 }
