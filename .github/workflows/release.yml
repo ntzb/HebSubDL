@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       changed: ${{ steps.check.outputs.changed }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@main
         with:
           fetch-depth: 2          # need the previous commit to diff against
 
@@ -76,18 +76,18 @@ jobs:
             name: macos
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@main
 
       # Two JDKs on purpose. The build targets 14 so the portable exe runs on
       # the widest range of machines, but JDK 14's jpackage is an incubator
       # build that litters the app image with 40 UCRT DLLs - build.gradle
       # resolves a 17 toolchain for jpackage alone. Temurin has no 14 (EOL,
       # they went 11 -> 16), hence Zulu for that one.
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@main
         with:
           distribution: zulu
           java-version: '14'
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@main
         with:
           distribution: temurin
           java-version: '17'
@@ -122,7 +122,7 @@ jobs:
           fi
           ls -la out/
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@main
         with:
           name: ${{ matrix.name }}
           path: out/
@@ -132,7 +132,7 @@ jobs:
     needs: [version, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@main
         with:
           path: artifacts
       - shell: bash
@@ -140,7 +140,7 @@ jobs:
           mkdir -p release && find artifacts -type f -exec cp {} release/ \;
           ls -la release/
 
-      - uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@master
         with:
           tag_name: v${{ needs.version.outputs.version }}
           name: HebSubDL ${{ needs.version.outputs.version }}
