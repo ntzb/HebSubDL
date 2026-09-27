@@ -325,15 +325,28 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         }
         String subtitleExtension = FilenameUtils.getExtension(fileURL);
         URLConnection con = (new URL(fileURL)).openConnection();
-        File subFile = new File(String.format("%s/%s.%s", mediaFile.getPathName(),
-                mediaFile.getFileName(), subtitleExtension));
+        File subFile = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
+                FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
+                subtitleExtension));
 
-        try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); // try with resources
-                FileOutputStream fos = new FileOutputStream(subFile)) {
-            long bytesTransferred = fos.getChannel().transferFrom(rbc, 0, 1000000);
-            if (bytesTransferred == 0)
-                return false;
+        ReadableByteChannel rbc;
+        try {
+            rbc = Channels.newChannel(con.getInputStream());
         } catch (Exception e) {
+            Logger.logException(e, "downloading subtitle");
+            return false;
+        }
+        try (ReadableByteChannel in = rbc; // try with resources
+                FileOutputStream fos = new FileOutputStream(subFile)) {
+            long bytesTransferred = fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+            if (bytesTransferred == 0) {
+                fos.close();
+                subFile.delete();
+                return false;
+            }
+        } catch (Exception e) {
+            // a partial file would make subAlreadyExists skip this video for good
+            subFile.delete();
             Logger.logException(e, "downloading subtitle");
             return false;
         }
