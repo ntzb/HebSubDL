@@ -14,12 +14,18 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.channels.Channels;
+import java.nio.charset.StandardCharsets;
 import java.nio.channels.ReadableByteChannel;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -29,6 +35,9 @@ public class KtuvitSubProvider implements ISubProvider {
     private DbAccess dbAccess;
     private String foundFilmID;
     private String chosenSubName;
+    // the download identifier lives in the ASP.NET session, so the session
+    // cookie has to travel with Login, and be swapped when the server renews it
+    private final Map<String, String> cookies = new LinkedHashMap<>();
     boolean isHebrewOnly = true;
 
     @Override
@@ -41,6 +50,9 @@ public class KtuvitSubProvider implements ISubProvider {
         String[] ratingResponseArray={"0","0"};
         this.dbAccess = new DbAccess();
         boolean ktuvitLoginValid = this.dbAccess.loginValid();
+        this.cookies.clear();
+        if (ktuvitLoginValid)
+            mergeCookieHeader(this.cookies, this.dbAccess.getCookie());
         try {
             if (!ktuvitLoginValid && !doLoginKtuvit()) {
                 Logger.logger.warning("could not log in to Ktuvit, check your credentials");
@@ -54,6 +66,8 @@ public class KtuvitSubProvider implements ISubProvider {
             ratingResponseArray = getTitleRating(foundSubs, titleWordsArray);
         } catch (Exception e) {
             Logger.logException(e, "getting subtitles and ratings for Ktuvit.");
+        } finally {
+            this.dbAccess.close();
         }
         return ratingResponseArray;
     }
@@ -70,10 +84,12 @@ public class KtuvitSubProvider implements ISubProvider {
             return false;
 
         int status = con.getResponseCode();
+        this.cookies.clear();
+        storeCookies(con);
 
         // check for error in login
         BufferedReader in = new BufferedReader(
-                new InputStreamReader(con.getInputStream()));
+                new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
         String inputLine;
         StringBuilder content = new StringBuilder();
         while ((inputLine = in.readLine()) != null) {
@@ -86,36 +102,103 @@ public class KtuvitSubProvider implements ISubProvider {
             obj = (JSONObject) jsonParser.parse(content.toString());
             obj = (JSONObject) jsonParser.parse(obj.get("d").toString());
 
-            if (status != 200 || !(boolean)obj.get("IsSuccess"))
+            if (status != 200 || !(boolean)obj.get("IsSuccess")) {
+                Logger.logger.warning("Ktuvit login rejected, status " + status + ": " + obj.get("ErrorMessage"));
                 return false;
+            }
         } catch (ParseException e) {
             Logger.logException(e, "parsing login response from Ktuvit");
             return false;
         }
 
         // we logged in, get the cookie and validity time
-        String[] cookieArray = con.getHeaderFields().get("set-cookie").get(0).split(";");
-        String cookie = cookieArray[0];
-        //String cookie = cookieArray[0].split("=",2)[1];
-        String validUntilStr = cookieArray[1].split("=",2)[1];
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("E, dd-LLL-yyyy HH:mm:ss z");
-        LocalDateTime dateTime = LocalDateTime.parse(validUntilStr, format);
-        long validUntil = dateTime.atZone(ZoneId.of("Asia/Jerusalem")).toInstant().toEpochMilli();
+        String loginCookie = findLoginCookie(con.getHeaderFields());
+        if (loginCookie == null) {
+            Logger.logger.warning("Ktuvit login succeeded but no Login cookie came back, got: " + setCookies(con.getHeaderFields()));
+            return false;
+        }
+        String[] cookieArray = loginCookie.split(";");
+        long validUntil = parseExpires(cookieAttribute(cookieArray, "expires"));
         //update the DB with cookie info
-        return (this.dbAccess.insertLogin(cookie, validUntil));
+        return (this.dbAccess.insertLogin(cookieHeader(this.cookies), validUntil));
+    }
+
+    // an expiry we can't read shouldn't lose a good login, so assume a day
+    static long parseExpires(String expires) {
+        if (expires != null) {
+            for (String pattern : new String[]{"E, dd-LLL-yyyy HH:mm:ss z", "E, dd LLL yyyy HH:mm:ss z"}) {
+                try {
+                    DateTimeFormatter format = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH);
+                    return ZonedDateTime.parse(expires, format).toInstant().toEpochMilli();
+                } catch (DateTimeParseException ignored) {
+                }
+            }
+            Logger.logger.warning("could not parse the Ktuvit cookie expiry '" + expires + "', assuming a day");
+        }
+        return System.currentTimeMillis() + 24 * 60 * 60 * 1000L;
+    }
+
+    private void storeCookies(HttpURLConnection con) {
+        for (String setCookie : setCookies(con.getHeaderFields()))
+            mergeCookieHeader(this.cookies, setCookie.split(";", 2)[0]);
+    }
+
+    // accepts both a Cookie request header ("a=1; b=2") and the name=value
+    // part of a single Set-Cookie
+    static void mergeCookieHeader(Map<String, String> jar, String header) {
+        if (header == null)
+            return;
+        for (String pair : header.split(";")) {
+            String[] kv = pair.trim().split("=", 2);
+            if (kv.length == 2 && !kv[0].isEmpty())
+                jar.put(kv[0], kv[1]);
+        }
+    }
+
+    static String cookieHeader(Map<String, String> jar) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> cookie : jar.entrySet()) {
+            if (sb.length() > 0)
+                sb.append("; ");
+            sb.append(cookie.getKey()).append("=").append(cookie.getValue());
+        }
+        return sb.toString();
+    }
+
+    // HttpURLConnection's header map is case-sensitive, and Ktuvit sends
+    // ASP.NET_SessionId ahead of the Login cookie we actually need
+    static List<String> setCookies(Map<String, List<String>> headers) {
+        List<String> cookies = new ArrayList<>();
+        for (Map.Entry<String, List<String>> header : headers.entrySet()) {
+            if ("set-cookie".equalsIgnoreCase(header.getKey()))
+                cookies.addAll(header.getValue());
+        }
+        return cookies;
+    }
+
+    static String findLoginCookie(Map<String, List<String>> headers) {
+        for (String cookie : setCookies(headers)) {
+            if (cookie.trim().startsWith("Login="))
+                return cookie;
+        }
+        return null;
+    }
+
+    static String cookieAttribute(String[] cookieParts, String name) {
+        for (int i = 1; i < cookieParts.length; i++) {
+            String[] kv = cookieParts[i].trim().split("=", 2);
+            if (kv.length == 2 && kv[0].equalsIgnoreCase(name))
+                return kv[1].trim();
+        }
+        return null;
     }
 
     private HttpURLConnection initConnection(String type, URL url, String data, HashMap<String, String> headers, boolean cookieNeeded) {
         try {
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod(type);
-            if (cookieNeeded) {
-                String ourCookie = this.dbAccess.getCookie();
-                con.setRequestProperty("cookie", ourCookie);
-                //works: con.setRequestProperty("Cookie", "ASP.NET_SessionId=t1u01gm255z2vxewddqqen4a; Login=u=D97AB58498264A1B771B6BA3302E89AB&g=0CDB1D895885C22247DC00D2698AB93C52F75FBA1ABB08652117057D3EBCAF56C5742E631716308196C9EBCB9C9634F1");
-                //works: con.setRequestProperty("Cookie", "Login=u=D97AB58498264A1B771B6BA3302E89AB&g=0CDB1D895885C22247DC00D2698AB93C52F75FBA1ABB08652117057D3EBCAF56C5742E631716308196C9EBCB9C9634F1");
-                //doesn't work: con.setRequestProperty("Cookie", "u=D97AB58498264A1B771B6BA3302E89AB&g=0CDB1D895885C22247DC00D2698AB93C52F75FBA1ABB08652117057D3EBCAF56C5742E631716308196C9EBCB9C9634F1");
-            }
+            if (cookieNeeded && !this.cookies.isEmpty())
+                con.setRequestProperty("cookie", cookieHeader(this.cookies));
 
             //con.setRequestProperty("authority", "www.ktuvit.me");
             for(String header : headers.keySet()) {
@@ -125,7 +208,7 @@ public class KtuvitSubProvider implements ISubProvider {
             if (!data.isEmpty()) {
                 con.setDoOutput(true);
                 DataOutputStream out = new DataOutputStream(con.getOutputStream());
-                out.writeBytes(data);
+                out.write(data.getBytes(StandardCharsets.UTF_8));
                 out.flush();
                 out.close();
             }
@@ -281,14 +364,15 @@ public class KtuvitSubProvider implements ISubProvider {
                 return null;
 
             int status = con.getResponseCode();
+            storeCookies(con);
             if (status == 200) {
                 InputStream input = con.getInputStream();
                 BufferedReader in;
                 String encoding = con.getHeaderField("content-encoding");
                 if (encoding != null && encoding.equals("gzip"))
-                    in = new BufferedReader(new InputStreamReader(new GZIPInputStream(input)));
+                    in = new BufferedReader(new InputStreamReader(new GZIPInputStream(input), StandardCharsets.UTF_8));
                 else
-                    in = new BufferedReader(new InputStreamReader(input));
+                    in = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
                 String inputLine;
                 StringBuffer content = new StringBuffer();
                 while ((inputLine = in.readLine()) != null) {
@@ -364,8 +448,25 @@ public class KtuvitSubProvider implements ISubProvider {
         return new String[]{highestRatingLink,String.valueOf(maxRating)};
     }
 
+    // The download identifier seems to live in one backend's in-memory session,
+    // so the follow-up GET finds it only when it's routed to the same server.
+    // Live, most downloads land first time, but losses come in streaks - up to
+    // three in a row - and waiting before the GET only makes it worse.
+    private static final int DOWNLOAD_ATTEMPTS = 5;
+
     @Override
     public boolean downloadSubFile(String subID, MediaFile mediaFile) {
+        for (int attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt++) {
+            Boolean downloaded = tryDownloadSubFile(subID, mediaFile);
+            if (downloaded != null)
+                return downloaded;
+            Logger.logger.info("Ktuvit lost download request " + attempt + " of " + DOWNLOAD_ATTEMPTS);
+        }
+        return false;
+    }
+
+    // null means Ktuvit lost the request, the only failure worth retrying
+    private Boolean tryDownloadSubFile(String subID, MediaFile mediaFile) {
         String downloadID;
 
         // first part - ask for download permission
@@ -375,12 +476,20 @@ public class KtuvitSubProvider implements ISubProvider {
         HashMap<String, String> headers = getBasicHeaders();
         headers.put("Referer", "https://www.ktuvit.me/MovieInfo.aspx?ID="+this.foundFilmID);
         StringBuffer response = sendRequest("POST", urlStr, data, headers, true);
+        if (response == null)
+            return false;
         JSONParser jsonParser = new JSONParser();
         JSONObject obj;
         try {
             obj = (JSONObject) jsonParser.parse(response.toString());
             obj = (JSONObject) jsonParser.parse(obj.get("d").toString());
-            downloadID = obj.get("DownloadIdentifier").toString();
+            Logger.logger.fine("Ktuvit download request: " + obj.toJSONString());
+            Object id = obj.get("DownloadIdentifier");
+            if (id == null || id.toString().isEmpty()) {
+                Logger.logger.warning("Ktuvit refused the download request: " + obj.get("ErrorMessage"));
+                return false;
+            }
+            downloadID = id.toString();
         } catch (ParseException e) {
             Logger.logException(e, "parsing response for download request in Ktuvit");
             return false;
@@ -393,15 +502,30 @@ public class KtuvitSubProvider implements ISubProvider {
             HttpURLConnection con = initConnection("GET", url, "", headers, true);
             if (con == null)
                 return false;
+            if (con.getResponseCode() != 200) {
+                Logger.logger.warning("Ktuvit download failed with status " + con.getResponseCode());
+                return false;
+            }
 
-            String fileName = con.getHeaderField("Content-Disposition");
+            // a lost download request still comes back as a 200 attachment, but
+            // it's a text file named after the Hebrew error message
+            String extension = subExtension(con.getHeaderField("Content-Disposition"));
+            if (extension == null) {
+                String body = new String(con.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                Logger.logger.warning("Ktuvit sent no subtitle file: " + body.trim());
+                return null;
+            }
             File filePath = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
                     FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
-                    FilenameUtils.getExtension(fileName)));
+                    extension));
             long bytesTransferred = 0;
             try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); //try with resources
                  FileOutputStream fos = new FileOutputStream(filePath)) {
-                bytesTransferred = fos.getChannel().transferFrom(rbc, 0, 1000000);
+                bytesTransferred = fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+            } catch (IOException e) {
+                // a partial file would make subAlreadyExists skip this video for good
+                filePath.delete();
+                throw e;
             }
             if (bytesTransferred == 0) {
                 filePath.delete();
@@ -409,9 +533,21 @@ public class KtuvitSubProvider implements ISubProvider {
             }
         } catch (IOException e) {
             Logger.logException(e, "downloading subtitle for Ktuvit");
+            return false;
         }
 
     return true;
+    }
+
+    static String subExtension(String contentDisposition) {
+        if (contentDisposition == null)
+            return null;
+        Matcher matcher = Pattern.compile("(?i)(?:^|;)\\s*filename\\s*=\\s*(\"[^\"]*\"|[^;]*)").matcher(contentDisposition);
+        if (!matcher.find())
+            return null;
+        String fileName = matcher.group(1).trim().replaceAll("^\"|\"$", "");
+        String extension = FilenameUtils.getExtension(fileName).toLowerCase();
+        return extension.equals("srt") || extension.equals("sub") ? extension : null;
     }
 
     @Override

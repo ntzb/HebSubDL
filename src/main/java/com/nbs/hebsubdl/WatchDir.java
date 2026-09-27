@@ -188,7 +188,7 @@ public class WatchDir {
         String str = String.join("\n", fileList);
         fileList.clear();
         JTextArea jTextArea = new JTextArea(str);
-        MainGUI.fillFilesTable(jFrame, jTable, jTextArea);
+        SwingUtilities.invokeLater(() -> MainGUI.fillFilesTable(jFrame, jTable, jTextArea));
     }
 
     private boolean needToIgnoreFile(Path path) {

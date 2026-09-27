@@ -7,47 +7,50 @@ import com.nbs.hebsubdl.PropertiesClass;
 import org.apache.commons.io.FilenameUtils;
 
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
 public class FindSubs {
-    static List<ISubProvider> providersList = new ArrayList<>(); // create a list of all providers to make iteration
-                                                                 // easy
+    // replaced whole, never modified, so a search running while settings are
+    // saved keeps iterating the list it started with
+    static volatile List<ISubProvider> providersList = Collections.emptyList();
 
     // Providers read their credentials in the constructor and cache tokens for
     // hours, so the list has to be rebuilt when settings change or the old
     // values stay live until the app is restarted.
     public static void reinitProviders() {
         Logger.logger.info("credentials changed, rebuilding providers");
-        providersList.clear();
         initProviders();
     }
 
     public static void initProviders() {
         Logger.logger.finer("initializing providers");
-        providersList.add(new WizdomSubProvider());
-        providersList.add(new KtuvitSubProvider());
-        providersList.add(new OpensubtitlesNewSubProvider());
+        List<ISubProvider> providers = new ArrayList<>();
+        providers.add(new WizdomSubProvider());
+        providers.add(new KtuvitSubProvider());
+        providers.add(new OpensubtitlesNewSubProvider());
+        providersList = Collections.unmodifiableList(providers);
 
         providersList.forEach(provider -> {
             Logger.logger.info(String.format("provider %s added", getProviderName(provider)));
         });
     }
 
-    public static void findSubs(ArrayList<MediaFile> mediaFileList, DefaultTableModel model, JTable jTable) {
+    // synchronized: a watched folder and a manual run can both start a search,
+    // and the providers keep per-search state (Ktuvit's session and film id)
+    public static synchronized void findSubs(ArrayList<MediaFile> mediaFileList, DefaultTableModel model, JTable jTable, int run) {
         Logger.logger.info("will search subtitles for " + mediaFileList.size() + " items.");
 
-        int count = 1;
-        for (MediaFile mediaFile : mediaFileList) {
+        for (int count = 0; count < mediaFileList.size(); count++) {
+            MediaFile mediaFile = mediaFileList.get(count);
             try {
                 Logger.logger.info("searching subtitles for item: " + mediaFile.getFileName());
                 if (subAlreadyExists(mediaFile)) {
                     Logger.logger.info("subtitle already exists! " + mediaFile.getFileName());
-                    model.setValueAt("sub already exists", count, 1);
-                    count++;
-                    MainGUI.fitColumns(jTable);
+                    setStatus(model, jTable, run, count, "sub already exists");
                     continue;
                 }
                 // fix title words array
@@ -107,15 +110,13 @@ public class FindSubs {
                     String[] currentRatingSub = subProvider.getRating(mediaFile, titleWordsArray);
                     if (Integer.parseInt(currentRatingSub[1]) == maxTitleRating) {
                         // full match, let's finish up
-                        model.setValueAt("downloading..", count, 1);
+                        setStatus(model, jTable, run, count, "downloading..");
                         Logger.logger.info(String.format("downloading sub from %s (%s)", provider,
                                 subProvider.getChosenSubName()));
                         didDownload = subProvider.downloadSubFile(currentRatingSub[0], mediaFile);
                         if (didDownload) {
                             Logger.logger.info("sub downloaded!");
-                            model.setValueAt("success!", count, 1);
-                            count++;
-                            MainGUI.fitColumns(jTable);
+                            setStatus(model, jTable, run, count, "success!");
                             break;
                         }
                     } else {
@@ -150,43 +151,43 @@ public class FindSubs {
                             if (subProviderScore.subProvider.downloadSubFile(subProviderScore.id, mediaFile)) {
                                 Logger.logger.info(String.format("downloaded sub from %s! (%s)", provider,
                                         subProviderScore.subProvider.getChosenSubName()));
-                                model.setValueAt("success!", count, 1);
-                                MainGUI.fitColumns(jTable);
-                                count++;
+                                setStatus(model, jTable, run, count, "success!");
                                 didDownload = true;
                                 break;
                             } else {
                                 Logger.logger.warning("provider " + provider + "failed, trying the next one.");
-                                model.setValueAt("failed provider, trying next one..", count, 1);
-                                MainGUI.fitColumns(jTable);
+                                setStatus(model, jTable, run, count, "failed provider, trying next one..");
                             }
                         }
                         if (!didDownload) {
                             Logger.logger.warning("all providers failed, something wrong?");
-                            model.setValueAt("all providers failed, something wrong?", count, 1);
-                            MainGUI.fitColumns(jTable);
+                            setStatus(model, jTable, run, count, "all providers failed, something wrong?");
                         }
                     } else {
                         // no match at all
                         Logger.logger.warning("failed - didn't find a matching sub.");
-                        model.setValueAt("failed - didn't find a match.", count, 1);
-                        MainGUI.fitColumns(jTable);
-                        count++;
+                        setStatus(model, jTable, run, count, "failed - didn't find a match.");
                     }
                 } else if (!didDownload) {
                     // no match at all
                     Logger.logger.warning("failed - no providers available.");
-                    model.setValueAt("failed - no providers available.", count, 1);
-                    MainGUI.fitColumns(jTable);
-                    count++;
+                    setStatus(model, jTable, run, count, "failed - no providers available.");
                 }
             } catch (Exception e) {
-                model.setValueAt("failed - error during search.", count, 1);
-                MainGUI.fitColumns(jTable);
-                count++;
+                setStatus(model, jTable, run, count, "failed - error during search.");
                 Logger.logException(e, "error during search");
             }
         }
+    }
+
+    // runs off the worker thread, and Swing models must only be touched on the EDT
+    private static void setStatus(DefaultTableModel model, JTable jTable, int run, int row, String status) {
+        SwingUtilities.invokeLater(() -> {
+            if (!MainGUI.isCurrentRun(run))
+                return;
+            model.setValueAt(status, row, 1);
+            MainGUI.refreshTable(jTable);
+        });
     }
 
     public static boolean subAlreadyExists(MediaFile mediaFile) {

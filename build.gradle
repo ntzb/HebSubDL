@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'com.nbs'
-version '2.3.1'
+version '2.3.2'
 
 // 14 keeps the jar and the portable exe runnable on the oldest JRE we claim to
 // support. Apple Silicon has no JDK 14 - it predates the port - so the macOS
@@ -18,6 +18,12 @@ java {
         languageVersion = JavaLanguageVersion.of(toolchainVersion)
     }
 
+}
+
+// the sources hold Hebrew, and javac otherwise reads them in the platform
+// charset - windows-1252 on a Windows build
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
 }
 
 repositories {
