@@ -93,4 +93,60 @@ class KtuvitSubProviderTest {
     void nameFallbackMatchesTheHebrewName() {
         assertTrue(KtuvitSubProvider.nameAndYearMatch(WHITE_LOTUS, "הלוטוס הלבן", null));
     }
+
+    @Test
+    void loginCookieIsFoundUnderCapitalizedHeaderAfterSessionCookie() {
+        java.util.Map<String, java.util.List<String>> headers = new java.util.HashMap<>();
+        headers.put(null, java.util.Collections.singletonList("HTTP/1.1 200 OK"));
+        headers.put("Set-Cookie", java.util.Arrays.asList(
+                "ASP.NET_SessionId=isg4dbvl4q1bklvfxwo1jrgz; path=/; HttpOnly",
+                "Login=u=D97AB584&g=0CDB1D89; expires=Mon, 27-Oct-2026 17:52:00 GMT; path=/"));
+        String cookie = KtuvitSubProvider.findLoginCookie(headers);
+        assertNotNull(cookie);
+        String[] parts = cookie.split(";");
+        assertEquals("Login=u=D97AB584&g=0CDB1D89", parts[0].trim());
+        assertEquals("Mon, 27-Oct-2026 17:52:00 GMT", KtuvitSubProvider.cookieAttribute(parts, "expires"));
+    }
+
+    @Test
+    void noLoginCookieReturnsNull() {
+        java.util.Map<String, java.util.List<String>> headers = new java.util.HashMap<>();
+        headers.put("Set-Cookie", java.util.Collections.singletonList("ASP.NET_SessionId=x; path=/; HttpOnly"));
+        assertNull(KtuvitSubProvider.findLoginCookie(headers));
+    }
+
+    @Test
+    void renewedSessionReplacesTheStoredOne() {
+        java.util.Map<String, String> jar = new java.util.LinkedHashMap<>();
+        KtuvitSubProvider.mergeCookieHeader(jar, "Login=u=D97A&g=0CDB; ASP.NET_SessionId=old");
+        KtuvitSubProvider.mergeCookieHeader(jar, "ASP.NET_SessionId=new");
+        assertEquals("Login=u=D97A&g=0CDB; ASP.NET_SessionId=new", KtuvitSubProvider.cookieHeader(jar));
+    }
+
+    @Test
+    void onlySubtitleAttachmentsCount() {
+        assertEquals("srt", KtuvitSubProvider.subExtension(
+                "attachment; filename=Thunderbolts.2025.720p.AMZN.WEB-DL.DDP5.1.H.264-KYOGO.srt"));
+        assertEquals("srt", KtuvitSubProvider.subExtension("attachment; filename=\"a.b.SRT\""));
+        // what a lost download request comes back as
+        assertNull(KtuvitSubProvider.subExtension("attachment; filename=הבקשה לא נמצאה, נא לנסות להוריד את הקובץ בשנית"));
+        assertNull(KtuvitSubProvider.subExtension(null));
+        assertEquals("srt", KtuvitSubProvider.subExtension("attachment; filename=\"x.srt\"; size=123"));
+        assertNull(KtuvitSubProvider.subExtension("attachment; filename=\"x.txt\"; note=a.srt"));
+    }
+
+    @Test
+    void cookieExpiryIsReadAsGmt() {
+        assertEquals(java.time.Instant.parse("2026-10-27T17:52:00Z").toEpochMilli(),
+                KtuvitSubProvider.parseExpires("Tue, 27-Oct-2026 17:52:00 GMT"));
+        assertEquals(java.time.Instant.parse("2026-10-27T17:52:00Z").toEpochMilli(),
+                KtuvitSubProvider.parseExpires("Tue, 27 Oct 2026 17:52:00 GMT"));
+    }
+
+    @Test
+    void unreadableExpiryFallsBackToADay() {
+        long inADay = System.currentTimeMillis() + 24 * 60 * 60 * 1000L;
+        assertTrue(Math.abs(KtuvitSubProvider.parseExpires("soon") - inADay) < 60_000);
+        assertTrue(Math.abs(KtuvitSubProvider.parseExpires(null) - inADay) < 60_000);
+    }
 }

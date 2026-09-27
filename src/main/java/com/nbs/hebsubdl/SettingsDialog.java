@@ -87,8 +87,11 @@ public class SettingsDialog extends JDialog {
         properties.put("openSubtitlesUserAgent", openSubtitlesUserAgent);
         PropertiesClass.writeProperties(properties);
 
-        if (ktuvitChanged)
-            new DbAccess().clearLogin();
+        if (ktuvitChanged) {
+            DbAccess dbAccess = new DbAccess();
+            dbAccess.clearLogin();
+            dbAccess.close();
+        }
         FindSubs.reinitProviders();
 
         dispose();

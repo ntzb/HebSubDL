@@ -17,26 +17,27 @@ public class DbAccess {
         return true;
     }
 
-    // check DB to see if we have a valid cookie. if not - generate one
-    public boolean loginValid() {
-        String dbPath = "db.sqlite";
+    private boolean openWithLoginTable() {
+        if (this.getConn() == null && !openOrCreateDB("db.sqlite"))
+            return false;
 
-        String getLoginSql = "CREATE TABLE IF NOT EXISTS login (\n"
+        String createLoginSql = "CREATE TABLE IF NOT EXISTS login (\n"
                 + "	cookie text PRIMARY KEY,\n"
                 + "	validUntil integer NOT NULL\n"
                 + ");";
-
-        if (this.getConn() == null) {
-            if (!openOrCreateDB(dbPath))
-                return false;
-        }
-
         try (Statement stmt = this.getConn().createStatement()) {
-            // create a new table if not exists
-            stmt.execute(getLoginSql);
+            stmt.execute(createLoginSql);
         } catch (SQLException e) {
-            Logger.logException(e, "creating statement for checking login.");
+            Logger.logException(e, "creating the login table.");
+            return false;
         }
+        return true;
+    }
+
+    // check DB to see if we have a valid cookie. if not - generate one
+    public boolean loginValid() {
+        if (!openWithLoginTable())
+            return false;
 
         String sqlSelect = "SELECT validUntil, cookie FROM login";
         boolean loginNeeded = false;
@@ -52,7 +53,7 @@ public class DbAccess {
                 while (resultSet.next()) {
                     this.validUntil = resultSet.getLong("validUntil");
                     this.cookie = resultSet.getString("cookie");
-                    loginNeeded = isCookieValid();
+                    loginNeeded = isCookieExpired();
                 }
             }
         } catch (SQLException e) {
@@ -63,11 +64,13 @@ public class DbAccess {
         return !loginNeeded;
     }
 
-    // update the DB with new login details
+    // update the DB with new login details, replacing the previous login
     public boolean insertLogin (String cookie, long validUntil) {
         String sql = "INSERT INTO login(cookie, validUntil) VALUES(?,?)";
 
-        try (PreparedStatement pstmt = this.getConn().prepareStatement(sql)) {
+        try (Statement stmt = this.getConn().createStatement();
+             PreparedStatement pstmt = this.getConn().prepareStatement(sql)) {
+            stmt.execute("DELETE FROM login");
             pstmt.setString(1, cookie);
             pstmt.setLong(2, validUntil);
             pstmt.executeUpdate();
@@ -84,7 +87,7 @@ public class DbAccess {
     // survives a restart too - without this, new Ktuvit credentials do nothing
     // until the old session expires
     public boolean clearLogin() {
-        if (this.getConn() == null && !openOrCreateDB("db.sqlite"))
+        if (!openWithLoginTable())
             return false;
         try (Statement stmt = this.getConn().createStatement()) {
             stmt.execute("DELETE FROM login");
@@ -98,9 +101,21 @@ public class DbAccess {
         }
     }
 
-    public boolean isCookieValid() {
-        long currentTime = System.currentTimeMillis()/1000;
-        return (this.validUntil + this.operationTime < currentTime);
+    // validUntil is in milliseconds; treat the cookie as expired a minute
+    // early so it doesn't run out mid-download
+    public boolean isCookieExpired() {
+        return this.validUntil - this.operationTime * 1000L < System.currentTimeMillis();
+    }
+
+    public void close() {
+        if (this.conn == null)
+            return;
+        try {
+            this.conn.close();
+        } catch (SQLException e) {
+            Logger.logException(e, "closing the DB.");
+        }
+        this.conn = null;
     }
 
     private Connection conn;
