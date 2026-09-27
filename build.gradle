@@ -20,6 +20,12 @@ java {
 
 }
 
+// the sources hold Hebrew, and javac otherwise reads them in the platform
+// charset - windows-1252 on a Windows build
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
 repositories {
     mavenCentral()
     maven { url "https://www.jetbrains.com/intellij-repository/releases" }
