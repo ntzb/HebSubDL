@@ -40,6 +40,10 @@ public class MainGUI {
     private JLabel pathLabel;
     private JTable filesTable;
     private JButton settingsButton;
+    private static final int MAX_PATH_ROWS = 8;
+    // bumped on the EDT whenever the table is refilled, so a run still going
+    // on the previous list stops writing statuses into the new one
+    private static int tableRun = 0;
 
     public static void main(String[] args) {
         Logger.initLogger();
@@ -58,7 +62,7 @@ public class MainGUI {
                     List<File> droppedItems = (List<File>) evt.getTransferable()
                             .getTransferData(DataFlavor.javaFileListFlavor);
                     fillItemsList(mainGUI, droppedItems);
-                    frame.pack();
+                    packWithinScreen(frame);
 
                 } catch (Exception ex) {
                     Logger.logException(ex, "dragging files into window.");
@@ -111,6 +115,9 @@ public class MainGUI {
             }
             itemCount++;
         }
+        // every item ends with a newline, which would otherwise count as a line
+        int lines = mainGUI.pathToLoadTA.getLineCount() - 1;
+        mainGUI.pathToLoadTA.setRows(Math.max(3, Math.min(lines, MAX_PATH_ROWS)));
     }
 
     private static void browseForItems(MainGUI mainGUI, JFrame frame) {
@@ -122,7 +129,7 @@ public class MainGUI {
         File[] itemsArray = fileChooser.getSelectedFiles();
         List<File> itemsList = Arrays.asList(itemsArray);
         fillItemsList(mainGUI, itemsList);
-        frame.pack();
+        packWithinScreen(frame);
     }
 
     public static void fillFilesTable(JFrame frame, JTable jTable, JTextArea jTextArea) {
@@ -130,11 +137,8 @@ public class MainGUI {
         DefaultTableModel model = (DefaultTableModel) jTable.getModel();
         model.setRowCount(0);
         model.setColumnCount(0);
-        model.addColumn(new Object[] { "file" });
-        model.addColumn(new Object[] { "status" });
-        model.addRow(new Object[] { "columns headers" });
-        model.setValueAt("file", 0, 0);
-        model.setValueAt("status", 0, 1);
+        model.addColumn("file");
+        model.addColumn("status");
 
         String[] itemsList = jTextArea.getText().split("\\n");
         ArrayList<String> filesList = new ArrayList<>();
@@ -148,20 +152,82 @@ public class MainGUI {
             } else
                 filesList.add(item);
         }
-        int rowCount = 1;
-        for (String file : filesList) {
-            model.addRow(new Object[] { file });
-            model.setValueAt(file, rowCount, 0);
-            model.setValueAt("working...", rowCount, 1);
-            rowCount++;
-        }
+        for (String file : filesList)
+            model.addRow(new Object[] { file, "working..." });
         fitColumns(jTable);
-        frame.pack();
+        sizeTableViewport(jTable, frame);
+        packWithinScreen(frame);
 
-        Runnable getSubsThread = () -> workOnFilesList(filesList, model, jTable);
+        int run = ++tableRun;
+        Runnable getSubsThread = () -> workOnFilesList(filesList, model, jTable, run);
         new Thread(getSubsThread).start();
         // workOnFilesList(filesList);
 
+    }
+
+    // grow the window to fit the table, but past ~half the screen scroll instead
+    private static void sizeTableViewport(JTable jTable, Window window) {
+        int maxHeight = usableScreen(window).height / 2;
+        Dimension tableSize = jTable.getPreferredSize();
+        int width = tableSize.width;
+        JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, jTable);
+        // leave room for the vertical scrollbar, or a horizontal one shows up too
+        if (tableSize.height > maxHeight && scrollPane != null)
+            width += scrollPane.getVerticalScrollBar().getPreferredSize().width;
+        jTable.setPreferredScrollableViewportSize(new Dimension(width, Math.min(tableSize.height, maxHeight)));
+    }
+
+    // statuses get longer as the search goes on, so widen the window to keep
+    // them in view - but never shrink it, and leave a maximized one alone
+    public static void refreshTable(JTable jTable) {
+        fitColumns(jTable);
+        Window window = SwingUtilities.getWindowAncestor(jTable);
+        if (window == null)
+            return;
+        sizeTableViewport(jTable, window);
+        jTable.revalidate();
+        if (isMaximized(window))
+            return;
+        Rectangle screen = usableScreen(window);
+        Dimension preferred = window.getPreferredSize();
+        int width = Math.max(window.getWidth(), Math.min(preferred.width, screen.width));
+        int height = Math.max(window.getHeight(), Math.min(preferred.height, screen.height));
+        if (width == window.getWidth() && height == window.getHeight())
+            return;
+        window.setSize(width, height);
+        keepOnScreen(window);
+    }
+
+    private static void packWithinScreen(Window window) {
+        if (isMaximized(window))
+            return;
+        window.pack();
+        Rectangle screen = usableScreen(window);
+        window.setSize(Math.min(window.getWidth(), screen.width), Math.min(window.getHeight(), screen.height));
+        keepOnScreen(window);
+    }
+
+    private static boolean isMaximized(Window window) {
+        return window instanceof Frame && (((Frame) window).getExtendedState() & Frame.MAXIMIZED_BOTH) != 0;
+    }
+
+    // only called right after the window grew, so a window the user parked
+    // partly off-screen isn't pulled back on every status update
+    private static void keepOnScreen(Window window) {
+        Rectangle screen = usableScreen(window);
+        int x = Math.max(screen.x, Math.min(window.getX(), screen.x + screen.width - window.getWidth()));
+        int y = Math.max(screen.y, Math.min(window.getY(), screen.y + screen.height - window.getHeight()));
+        if (x != window.getX() || y != window.getY())
+            window.setLocation(x, y);
+    }
+
+    // the screen minus the taskbar
+    private static Rectangle usableScreen(Window window) {
+        GraphicsConfiguration gc = window.getGraphicsConfiguration();
+        Rectangle bounds = gc.getBounds();
+        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(gc);
+        return new Rectangle(bounds.x + insets.left, bounds.y + insets.top,
+                bounds.width - insets.left - insets.right, bounds.height - insets.top - insets.bottom);
     }
 
     public static void fitColumns(JTable jTable) {
@@ -192,7 +258,11 @@ public class MainGUI {
 
     }
 
-    private static void workOnFilesList(ArrayList<String> filesList, DefaultTableModel model, JTable jTable) {
+    public static boolean isCurrentRun(int run) {
+        return run == tableRun;
+    }
+
+    private static void workOnFilesList(ArrayList<String> filesList, DefaultTableModel model, JTable jTable, int run) {
         Logger.logger.finer("working on file list.");
         ArrayList<MediaFile> mediaFilesList = new ArrayList<>();
         for (String file : filesList) {
@@ -205,7 +275,7 @@ public class MainGUI {
         try {
             if (!mediaFilesList.isEmpty()) {
                 Logger.logger.fine("starting subtitles search.");
-                FindSubs.findSubs(mediaFilesList, model, jTable);
+                FindSubs.findSubs(mediaFilesList, model, jTable, run);
             } else
                 Logger.logger.info("empty file list - nothing to do.");
         } catch (Exception e) {
@@ -335,13 +405,17 @@ public class MainGUI {
         mainPanel.add(workPanel,
                 new GridConstraints(3, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
                         GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null,
+                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null,
                         0, false));
-        filesTable = new JTable();
-        workPanel.add(filesTable,
+        final JScrollPane scrollPane1 = new JScrollPane();
+        workPanel.add(scrollPane1,
                 new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null,
-                        new Dimension(150, 50), null, 0, false));
+                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW,
+                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null,
+                        null, 0, false));
+        filesTable = new JTable();
+        filesTable.setPreferredScrollableViewportSize(new Dimension(150, 50));
+        scrollPane1.setViewportView(filesTable);
         welcomeLabel = new JLabel();
         Font welcomeLabelFont = this.$$$getFont$$$(null, -1, -1, welcomeLabel.getFont());
         if (welcomeLabelFont != null)
@@ -382,13 +456,17 @@ public class MainGUI {
                 new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
                         GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                         GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        final JScrollPane scrollPane2 = new JScrollPane();
+        panel1.add(scrollPane2,
+                new GridConstraints(0, 1, 3, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
+                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW,
+                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW,
+                        new Dimension(279, 50), null, null, 0, false));
         pathToLoadTA = new JTextArea();
         pathToLoadTA.setEditable(false);
+        pathToLoadTA.setRows(3);
         pathToLoadTA.setToolTipText("<drag files/folders here>");
-        panel1.add(pathToLoadTA,
-                new GridConstraints(0, 1, 3, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null,
-                        new Dimension(279, 50), null, 0, false));
+        scrollPane2.setViewportView(pathToLoadTA);
         pathLabel = new JLabel();
         pathLabel.setText("Path:");
         panel1.add(pathLabel, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE,
