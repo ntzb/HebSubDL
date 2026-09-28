@@ -18,7 +18,8 @@ public class WatchDir {
     private final Map<WatchKey,Path> keys;
     private final boolean recursive;
     private boolean trace = false;
-    private Timer timer = new Timer();
+    private volatile Timer timer = new Timer(true);
+    private volatile boolean closed = false;
     TimerTask timerTask;
     private ArrayList<String> fileList = new ArrayList<>();
     // these will only be assigned once, at app startup
@@ -75,15 +76,21 @@ public class WatchDir {
         this.jTable = jTable;
         this.jFrame = frame;
 
-        for (String dirStr : dirs) {
-            Path dir = Paths.get(dirStr);
-            if (recursive) {
-                Logger.logger.info(String.format("scanning %s ...", dir));
-                registerAll(dir);
-                Logger.logger.info("done scanning and registering for changes.");
-            } else {
-                register(dir);
+        try {
+            for (String dirStr : dirs) {
+                Path dir = Paths.get(dirStr);
+                if (recursive) {
+                    Logger.logger.info(String.format("scanning %s ...", dir));
+                    registerAll(dir);
+                    Logger.logger.info("done scanning and registering for changes.");
+                } else {
+                    register(dir);
+                }
             }
+        } catch (IOException | RuntimeException e) {
+            watcher.close();
+            timer.cancel();
+            throw e;
         }
 
         // enable trace after initial registration
@@ -102,6 +109,9 @@ public class WatchDir {
                 key = watcher.take();
             } catch (InterruptedException x) {
                 Logger.logException(x, "failed taking watch key.");
+                return;
+            } catch (ClosedWatchServiceException x) {
+                Logger.logger.info("stopped watching directories");
                 return;
             }
 
@@ -132,14 +142,16 @@ public class WatchDir {
 
                 if (event.kind().name().equals("ENTRY_CREATE")) {
                     // handle new video file - add to db, search for subs
-                    fileList.add(child.toString());
+                    synchronized (fileList) {
+                        fileList.add(child.toString());
+                    }
                     Logger.logger.info(String.format("adding %s to filelist.", child.toString()));
 
                     try {
                         Logger.logger.finer("cancelling existing timer.");
                         this.timer.cancel();
                         Logger.logger.finer("creating new timer.");
-                        this.timer = new Timer();
+                        this.timer = new Timer(true);
                         timerTask = new TimerTask() {
                             @Override
                             public void run() {
@@ -164,6 +176,9 @@ public class WatchDir {
                         if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
                             registerAll(child);
                         }
+                    } catch (ClosedWatchServiceException x) {
+                        Logger.logger.info("stopped watching directories");
+                        return;
                     } catch (IOException x) {
                         Logger.logException(x, "failed checking for dir or registering all subdirs for change events.");
                     }
@@ -183,10 +198,30 @@ public class WatchDir {
         }
     }
 
+    // stops run(). Files already batched are still searched when their timer fires.
+    public void close() {
+        closed = true;
+        try {
+            watcher.close();
+        } catch (IOException e) {
+            Logger.logException(e, "closing the directory watcher");
+        }
+        synchronized (fileList) {
+            if (fileList.isEmpty())
+                timer.cancel();
+        }
+    }
+
+    // runs on the timer thread while the watcher thread keeps adding files
     private void searchForSubs() {
-        Logger.logger.info(String.format("searching for subtitles for %d files.", fileList.size()));
-        String str = String.join("\n", fileList);
-        fileList.clear();
+        String str;
+        synchronized (fileList) {
+            Logger.logger.info(String.format("searching for subtitles for %d files.", fileList.size()));
+            str = String.join("\n", fileList);
+            fileList.clear();
+            if (closed)
+                timer.cancel();
+        }
         JTextArea jTextArea = new JTextArea(str);
         SwingUtilities.invokeLater(() -> MainGUI.fillFilesTable(jFrame, jTable, jTextArea));
     }
@@ -206,6 +241,9 @@ public class WatchDir {
         if (keywordsToIgnore == null || keywordsToIgnore.isBlank())
             return false;
         for (String keyword : keywordsToIgnore.split(",")) {
+            keyword = keyword.trim();
+            if (keyword.isEmpty())
+                continue;
             if (filename.contains(keyword)) {
                 Logger.logger.finest(String.format("ignoring file %s because it has a keyword set to be ignored", filename));
                 return true;

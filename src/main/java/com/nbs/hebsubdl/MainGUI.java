@@ -52,6 +52,10 @@ public class MainGUI {
     private static int runDone;
     // ticks the time left down between finished files
     private static final Timer progressTimer = new Timer(1000, event -> showProgress());
+    // guarded by MainGUI.class
+    private static WatchDir watchDir;
+    private static JFrame watchFrame;
+    private static JTable watchTable;
 
     public static void main(String[] args) {
         Logger.initLogger();
@@ -93,20 +97,43 @@ public class MainGUI {
     }
 
     private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {
-        String watchDirs = PropertiesClass.getWatchDirectories();
-        if (watchDirs == null || watchDirs.trim().isEmpty()) {
+        watchFrame = frame;
+        watchTable = mainGUI.filesTable;
+        startDirWatcher(true);
+    }
+
+    // the watched folders changed in the settings. Registering walks every
+    // subfolder, which can take a while on a big drive, so not on the EDT.
+    public static void restartDirWatcher() {
+        new Thread(() -> {
+            synchronized (MainGUI.class) {
+                if (watchDir != null) {
+                    watchDir.close();
+                    watchDir = null;
+                }
+                startDirWatcher(false);
+            }
+        }, "watch-restart").start();
+    }
+
+    private static synchronized void startDirWatcher(boolean atStartup) {
+        List<String> dirs = WatchDirsDialog.parse(PropertiesClass.getWatchDirectories());
+        if (dirs.isEmpty()) {
             Logger.logger.fine("got empty watch directory - will not watch.");
             return;
         }
-        List<String> dirs = Arrays.stream(watchDirs.split(",")).collect(Collectors.toList());
         try {
-            if (dirs.size() > 0) {
-                WatchDir watchDir = new WatchDir(dirs, true, frame, mainGUI.filesTable);
-                new Thread(watchDir::run).start();
-            }
+            watchDir = new WatchDir(dirs, true, watchFrame, watchTable);
+            new Thread(watchDir::run, "watch-dirs").start();
         } catch (NoSuchFileException e) {
-            Logger.logSevereAndExitWithError(String.format("directory asked to watch doesn't exists: %s, " +
-                    "did you forget to use double backslash in the config file?", e.getMessage()));
+            String message = String.format("directory asked to watch doesn't exists: %s, " +
+                    "did you forget to use double backslash in the config file?", e.getMessage());
+            if (atStartup)
+                Logger.logSevereAndExitWithError(message);
+            Logger.logger.severe(message);
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(watchFrame,
+                    "Can't watch a folder that doesn't exist:\n" + e.getMessage(),
+                    "Watched folders", JOptionPane.ERROR_MESSAGE));
         } catch (IOException e) {
             Logger.logException(e, "when registering directories to watch");
         }
