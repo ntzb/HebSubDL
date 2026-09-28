@@ -9,6 +9,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.HashMap;
+import java.util.List;
 
 public class SettingsDialog extends JDialog {
     private JPanel contentPane;
@@ -28,6 +29,16 @@ public class SettingsDialog extends JDialog {
     private JTextField openSubtitlesApiKeyField;
     private JLabel openSubtitlesUserAgentLabel;
     private JTextField openSubtitlesUserAgentField;
+    private JLabel logLevelLabel;
+    private JComboBox<String> logLevelComboBox;
+    private JLabel watchIgnoreKeywordsLabel;
+    private JTextField watchIgnoreKeywordsField;
+    private JLabel watchDirectoriesLabel;
+    private JButton watchDirectoriesButton;
+    private List<String> watchDirs;
+    private String loadedLogLevel;
+
+    static final String[] LOG_LEVELS = { "severe", "warning", "info", "fine", "finer", "finest" };
 
 
     public SettingsDialog() {
@@ -46,6 +57,14 @@ public class SettingsDialog extends JDialog {
         buttonCancel.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onCancel();
+            }
+        });
+
+        watchDirectoriesButton.addActionListener(e -> {
+            List<String> edited = WatchDirsDialog.edit(this, watchDirs);
+            if (edited != null) {
+                watchDirs = edited;
+                showWatchDirs();
             }
         });
 
@@ -73,6 +92,10 @@ public class SettingsDialog extends JDialog {
         String openSubtitlesPassword = new String(openSubtitlesPasswordField.getPassword());
         String openSubtitlesApiKey = new String(openSubtitlesApiKeyField.getText().trim());
         String openSubtitlesUserAgent = new String(openSubtitlesUserAgentField.getText().trim());
+        String logLevel = (String) logLevelComboBox.getSelectedItem();
+        String watchIgnoreKeywords = watchIgnoreKeywordsField.getText().trim();
+        String watchDirectories = String.join(",", watchDirs);
+        boolean watchDirsChanged = !WatchDirsDialog.parse(PropertiesClass.getWatchDirectories()).equals(watchDirs);
 
         boolean ktuvitChanged = !ktuvitUsername.equals(PropertiesClass.getKtuvitUsername())
                 || !ktuvitPassword.equals(PropertiesClass.getKtuvitPassword());
@@ -85,7 +108,15 @@ public class SettingsDialog extends JDialog {
         properties.put("openSubtitlesPassword", openSubtitlesPassword);
         properties.put("openSubtitlesApiKey", openSubtitlesApiKey);
         properties.put("openSubtitlesUserAgent", openSubtitlesUserAgent);
+        // only when changed, so a hand-written "DEBUG" isn't rewritten as "finest"
+        if (!logLevel.equals(loadedLogLevel))
+            properties.put("logLevel", logLevel);
+        properties.put("watchIgnoreKeywords", watchIgnoreKeywords);
+        if (watchDirsChanged)
+            properties.put("watchDirectories", watchDirectories);
         PropertiesClass.writeProperties(properties);
+        if (watchDirsChanged)
+            MainGUI.restartDirWatcher();
 
         if (ktuvitChanged) {
             DbAccess dbAccess = new DbAccess();
@@ -118,6 +149,34 @@ public class SettingsDialog extends JDialog {
         openSubtitlesPasswordField.setText(PropertiesClass.getOpenSubtitlesPassword());
         openSubtitlesApiKeyField.setText(PropertiesClass.getOpenSubtitlesApiKey());
         openSubtitlesUserAgentField.setText(PropertiesClass.getOpenSubtitlesUserAgent());
+        loadedLogLevel = normalizeLogLevel(PropertiesClass.getLogLevel());
+        logLevelComboBox.setSelectedItem(loadedLogLevel);
+        watchIgnoreKeywordsField.setText(PropertiesClass.getWatchIgnoreKeywords());
+        watchDirs = WatchDirsDialog.parse(PropertiesClass.getWatchDirectories());
+        showWatchDirs();
+    }
+
+    private void showWatchDirs() {
+        watchDirectoriesButton.setText(watchDirs.isEmpty() ? "none - Edit..."
+                : watchDirs.size() == 1 ? "1 folder - Edit..." : watchDirs.size() + " folders - Edit...");
+        watchDirectoriesButton.setToolTipText(watchDirs.isEmpty() ? null
+                : "<html>" + String.join("<br>", watchDirs) + "</html>");
+    }
+
+    // the config also takes "error" and "debug", which are the same levels
+    static String normalizeLogLevel(String level) {
+        if (level == null || level.isBlank())
+            return "info";
+        String lower = level.trim().toLowerCase();
+        if (lower.equals("error"))
+            return "severe";
+        if (lower.equals("debug"))
+            return "finest";
+        for (String known : LOG_LEVELS) {
+            if (known.equals(lower))
+                return lower;
+        }
+        return "info";
     }
 
     // NOTE: if adding GUI elements in intellij idea does not add code in this file,
@@ -157,7 +216,7 @@ public class SettingsDialog extends JDialog {
         buttonCancel.setToolTipText("discard changes");
         panel2.add(buttonCancel, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JPanel panel3 = new JPanel();
-        panel3.setLayout(new GridLayoutManager(8, 3, new Insets(0, 0, 0, 0), -1, -1));
+        panel3.setLayout(new GridLayoutManager(11, 3, new Insets(0, 0, 0, 0), -1, -1));
         contentPane.add(panel3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         ktuvitUsernameLabel = new JLabel();
         ktuvitUsernameLabel.setText("Ktuvit username:");
@@ -207,6 +266,34 @@ public class SettingsDialog extends JDialog {
         openSubtitlesUserAgentField = new JTextField();
         openSubtitlesUserAgentField.setToolTipText("");
         panel3.add(openSubtitlesUserAgentField, new GridConstraints(5, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        logLevelLabel = new JLabel();
+        logLevelLabel.setText("Log level:");
+        logLevelLabel.setToolTipText("finest logs the most, and is the one to use when reporting a problem");
+        panel3.add(logLevelLabel, new GridConstraints(8, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        logLevelComboBox = new JComboBox<>();
+        final DefaultComboBoxModel<String> defaultComboBoxModel1 = new DefaultComboBoxModel<>();
+        defaultComboBoxModel1.addElement("severe");
+        defaultComboBoxModel1.addElement("warning");
+        defaultComboBoxModel1.addElement("info");
+        defaultComboBoxModel1.addElement("fine");
+        defaultComboBoxModel1.addElement("finer");
+        defaultComboBoxModel1.addElement("finest");
+        logLevelComboBox.setModel(defaultComboBoxModel1);
+        panel3.add(logLevelComboBox, new GridConstraints(8, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        watchIgnoreKeywordsLabel = new JLabel();
+        watchIgnoreKeywordsLabel.setText("Watch ignore keywords:");
+        watchIgnoreKeywordsLabel.setToolTipText("comma separated; new files whose path contains one of them are not searched");
+        panel3.add(watchIgnoreKeywordsLabel, new GridConstraints(9, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        watchIgnoreKeywordsField = new JTextField();
+        watchIgnoreKeywordsField.setToolTipText("comma separated; new files whose path contains one of them are not searched");
+        panel3.add(watchIgnoreKeywordsField, new GridConstraints(9, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        watchDirectoriesLabel = new JLabel();
+        watchDirectoriesLabel.setText("Watched folders:");
+        watchDirectoriesLabel.setToolTipText("new video files in these folders are searched automatically");
+        panel3.add(watchDirectoriesLabel, new GridConstraints(10, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        watchDirectoriesButton = new JButton();
+        watchDirectoriesButton.setText("Edit...");
+        panel3.add(watchDirectoriesButton, new GridConstraints(10, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
     }
 
     /**

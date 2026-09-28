@@ -40,15 +40,28 @@ public class MainGUI {
     private JLabel pathLabel;
     private JTable filesTable;
     private JButton settingsButton;
+    private JProgressBar progressBar;
     private static final int MAX_PATH_ROWS = 8;
     // bumped on the EDT whenever the table is refilled, so a run still going
     // on the previous list stops writing statuses into the new one
     private static int tableRun = 0;
+    // progress of the current run - EDT only, like tableRun
+    private static JProgressBar progress;
+    private static long runStartedAt;
+    private static int runTotal;
+    private static int runDone;
+    // ticks the time left down between finished files
+    private static final Timer progressTimer = new Timer(1000, event -> showProgress());
+    // guarded by MainGUI.class
+    private static WatchDir watchDir;
+    private static JFrame watchFrame;
+    private static JTable watchTable;
 
     public static void main(String[] args) {
         Logger.initLogger();
         Logger.logger.info("Starting app, version " + AppVersion.get() + ".");
         MainGUI mainGUI = new MainGUI();
+        progress = mainGUI.progressBar;
         JFrame frame = new JFrame("HebSubDL");
         frame.setContentPane(mainGUI.mainPanel);
 
@@ -84,20 +97,43 @@ public class MainGUI {
     }
 
     private static void setupDirWatcher(MainGUI mainGUI, JFrame frame) {
-        String watchDirs = PropertiesClass.getWatchDirectories();
-        if (watchDirs == null || watchDirs.trim().isEmpty()) {
+        watchFrame = frame;
+        watchTable = mainGUI.filesTable;
+        startDirWatcher(true);
+    }
+
+    // the watched folders changed in the settings. Registering walks every
+    // subfolder, which can take a while on a big drive, so not on the EDT.
+    public static void restartDirWatcher() {
+        new Thread(() -> {
+            synchronized (MainGUI.class) {
+                if (watchDir != null) {
+                    watchDir.close();
+                    watchDir = null;
+                }
+                startDirWatcher(false);
+            }
+        }, "watch-restart").start();
+    }
+
+    private static synchronized void startDirWatcher(boolean atStartup) {
+        List<String> dirs = WatchDirsDialog.parse(PropertiesClass.getWatchDirectories());
+        if (dirs.isEmpty()) {
             Logger.logger.fine("got empty watch directory - will not watch.");
             return;
         }
-        List<String> dirs = Arrays.stream(watchDirs.split(",")).collect(Collectors.toList());
         try {
-            if (dirs.size() > 0) {
-                WatchDir watchDir = new WatchDir(dirs, true, frame, mainGUI.filesTable);
-                new Thread(watchDir::run).start();
-            }
+            watchDir = new WatchDir(dirs, true, watchFrame, watchTable);
+            new Thread(watchDir::run, "watch-dirs").start();
         } catch (NoSuchFileException e) {
-            Logger.logSevereAndExitWithError(String.format("directory asked to watch doesn't exists: %s, " +
-                    "did you forget to use double backslash in the config file?", e.getMessage()));
+            String message = String.format("directory asked to watch doesn't exists: %s, " +
+                    "did you forget to use double backslash in the config file?", e.getMessage());
+            if (atStartup)
+                Logger.logSevereAndExitWithError(message);
+            Logger.logger.severe(message);
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(watchFrame,
+                    "Can't watch a folder that doesn't exist:\n" + e.getMessage(),
+                    "Watched folders", JOptionPane.ERROR_MESSAGE));
         } catch (IOException e) {
             Logger.logException(e, "when registering directories to watch");
         }
@@ -143,6 +179,8 @@ public class MainGUI {
         String[] itemsList = jTextArea.getText().split("\\n");
         ArrayList<String> filesList = new ArrayList<>();
         for (String item : itemsList) {
+            if (item.isBlank())
+                continue;
             if (Files.isDirectory(Paths.get(item))) {
                 try {
                     FilesAndFolders.walkDir(item, filesList);
@@ -159,6 +197,9 @@ public class MainGUI {
         packWithinScreen(frame);
 
         int run = ++tableRun;
+        progressTimer.stop();
+        progress.setIndeterminate(true);
+        progress.setString("waiting to start...");
         Runnable getSubsThread = () -> workOnFilesList(filesList, model, jTable, run);
         new Thread(getSubsThread).start();
         // workOnFilesList(filesList);
@@ -262,24 +303,82 @@ public class MainGUI {
         return run == tableRun;
     }
 
+    // called from the search thread once it knows how many files need a search
+    public static void searchStarted(int run, int total) {
+        SwingUtilities.invokeLater(() -> {
+            if (!isCurrentRun(run))
+                return;
+            runStartedAt = System.currentTimeMillis();
+            runTotal = total;
+            runDone = 0;
+            progress.setIndeterminate(false);
+            progress.setMaximum(Math.max(total, 1));
+            if (total > 0)
+                progressTimer.start();
+            showProgress();
+        });
+    }
+
+    public static void fileFinished(int run) {
+        SwingUtilities.invokeLater(() -> {
+            if (!isCurrentRun(run))
+                return;
+            runDone++;
+            showProgress();
+        });
+    }
+
+    private static void showProgress() {
+        long elapsed = System.currentTimeMillis() - runStartedAt;
+        progress.setValue(runTotal == 0 ? progress.getMaximum() : runDone);
+        if (runTotal == 0) {
+            progressTimer.stop();
+            progress.setString("nothing to search");
+        } else if (runDone >= runTotal) {
+            progressTimer.stop();
+            progress.setString(String.format("done: %d of %d in %s", runDone, runTotal, formatDuration(elapsed)));
+        } else if (runDone == 0) {
+            progress.setString(String.format("0 of %d - estimating the time left...", runTotal));
+        } else {
+            long left = Math.max(0, elapsed * runTotal / runDone - elapsed);
+            progress.setString(String.format("%d of %d - about %s left", runDone, runTotal, formatDuration(left)));
+        }
+    }
+
+    static String formatDuration(long millis) {
+        long seconds = (millis + 500) / 1000;
+        if (seconds < 60)
+            return seconds + "s";
+        if (seconds < 3600)
+            return String.format("%dm %02ds", seconds / 60, seconds % 60);
+        return String.format("%dh %02dm", seconds / 3600, (seconds % 3600) / 60);
+    }
+
     private static void workOnFilesList(ArrayList<String> filesList, DefaultTableModel model, JTable jTable, int run) {
         Logger.logger.finer("working on file list.");
-        ArrayList<MediaFile> mediaFilesList = new ArrayList<>();
-        for (String file : filesList) {
-            // for the meantime, just print the file list
-            MediaFile mediaFile = new MediaFile(file);
-            mediaFilesList.add(mediaFile);
-            MediaFile.parse(mediaFile);
-        }
-        ImdbQuery.getImdbID(mediaFilesList);
         try {
+            ArrayList<MediaFile> mediaFilesList = new ArrayList<>();
+            for (String file : filesList) {
+                MediaFile mediaFile = new MediaFile(file);
+                mediaFilesList.add(mediaFile);
+                MediaFile.parse(mediaFile);
+            }
             if (!mediaFilesList.isEmpty()) {
                 Logger.logger.fine("starting subtitles search.");
                 FindSubs.findSubs(mediaFilesList, model, jTable, run);
-            } else
+            } else {
                 Logger.logger.info("empty file list - nothing to do.");
+                searchStarted(run, 0);
+            }
         } catch (Exception e) {
             Logger.logException(e, "calling findSubs");
+            SwingUtilities.invokeLater(() -> {
+                if (!isCurrentRun(run))
+                    return;
+                progressTimer.stop();
+                progress.setIndeterminate(false);
+                progress.setString("search failed - see the log");
+            });
         }
     }
 
@@ -396,7 +495,7 @@ public class MainGUI {
      */
     private void $$$setupUI$$$() {
         mainPanel = new JPanel();
-        mainPanel.setLayout(new GridLayoutManager(4, 3, new Insets(0, 0, 0, 0), -1, -1));
+        mainPanel.setLayout(new GridLayoutManager(5, 3, new Insets(0, 0, 0, 0), -1, -1));
         Font mainPanelFont = this.$$$getFont$$$(null, -1, -1, mainPanel.getFont());
         if (mainPanelFont != null)
             mainPanel.setFont(mainPanelFont);
@@ -475,6 +574,13 @@ public class MainGUI {
         settingsButton.setText("Settings...");
         mainPanel.add(settingsButton,
                 new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        progressBar = new JProgressBar();
+        progressBar.setString("ready");
+        progressBar.setStringPainted(true);
+        mainPanel.add(progressBar,
+                new GridConstraints(4, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
                         GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                         GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final Spacer spacer2 = new Spacer();

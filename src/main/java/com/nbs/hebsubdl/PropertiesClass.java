@@ -134,6 +134,10 @@ public class PropertiesClass {
                         setWatchIgnoreKeywords(properties.get(key));
                         prop.setProperty("watch.ignorekeywords", getWatchIgnoreKeywords());
                     }
+                    case "logLevel" -> {
+                        setLogLevel(properties.get(key));
+                        prop.setProperty("log.level", getLogLevel());
+                    }
                 }
             }
 
