@@ -45,6 +45,13 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     static final int LOGIN_MAX_ATTEMPTS = 3;
     static final long LOGIN_RETRY_BASE_MS = 1000;
 
+    // The search threads each have their own instance, but should share one
+    // login: OpenSubtitles allows 1 login a second and 10 a minute.
+    private static final Object LOGIN_LOCK = new Object();
+    private static String sharedToken;
+    private static String sharedTokenOwner;
+    private static long sharedTokenValidity = 0;
+
     @Override
     public String getChosenSubName() {
         return chosenSubName;
@@ -63,7 +70,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
 
     private HttpURLConnection initConnection(String type, URL url, String data, HashMap<String, String> headers) {
         try {
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            HttpURLConnection con = Throttle.withTimeouts((HttpURLConnection) url.openConnection());
             con.setRequestMethod(type);
             for (String header : headers.keySet()) {
                 con.setRequestProperty(header, headers.get(header));
@@ -97,6 +104,9 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         URL url = new URL(this.baseURL + "/login");
         String data = "{\"username\":\"" + this.username + "\",\"password\":\"" + this.password + "\"}";
         HashMap<String, String> headers = getBasicHeaders();
+        // spaced, but not Throttle.send: loginWithRetries already retries a 429,
+        // and doubling up would blow through the 10 logins a minute allowed
+        Throttle.OPENSUBTITLES.acquire();
         HttpURLConnection con = initConnection("POST", url, data, headers);
         if (con == null)
             return LOGIN_NO_CONNECTION;
@@ -125,6 +135,9 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
             // save the token and the validity time
             this.token = obj.get("token").toString();
             this.tokenValidity = Instant.now().getEpochSecond() + 24 * 60 * 60 - 60; // 24 hours minus 1 minute
+            sharedToken = this.token;
+            sharedTokenValidity = this.tokenValidity;
+            sharedTokenOwner = tokenOwner();
         } catch (ParseException e) {
             Logger.logException(e, "parsing login response from Open Subtitles");
             return LOGIN_BAD_RESPONSE;
@@ -202,6 +215,25 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         return Instant.now().getEpochSecond() < this.tokenValidity;
     }
 
+    private String tokenOwner() {
+        return this.apiKey + "\n" + this.username + "\n" + this.password;
+    }
+
+    // reuse another thread's login when it was made with the same credentials
+    private boolean ensureLoggedIn() throws IOException {
+        synchronized (LOGIN_LOCK) {
+            if (this.isTokenValid())
+                return true;
+            if (tokenOwner().equals(sharedTokenOwner) && Instant.now().getEpochSecond() < sharedTokenValidity) {
+                this.token = sharedToken;
+                this.tokenValidity = sharedTokenValidity;
+                return true;
+            }
+            Logger.logger.info("OpenSubtitles not logged in, or token no longer valid");
+            return loginWithRetries();
+        }
+    }
+
     private String buildURL(String base, String path, HashMap<String, String> queryParams) {
         StringBuilder url = new StringBuilder(base).append(path).append("?");
         AtomicInteger paramIndex = new AtomicInteger();
@@ -245,15 +277,17 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     @Override
     public String getQueryJsonResponse(URL url) throws IOException {
         HashMap<String, String> headers = getBasicHeaders();
-        HttpURLConnection con = initConnection("GET", url, null, headers);
+        HttpURLConnection con = Throttle.OPENSUBTITLES.send(() -> initConnection("GET", url, null, headers));
         if (con == null) {
             Logger.logger.severe("failed initializing connection");
             return null;
         }
 
         int status = con.getResponseCode();
-        if (status != 200)
+        if (status != 200) {
+            Logger.logger.warning("OpenSubtitles search failed with status " + status);
             return null;
+        }
 
         // check for error in login
         BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
@@ -277,17 +311,20 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         String data = "{\"file_id\":\"" + subId + "\"}";
         HashMap<String, String> headers = getBasicHeaders();
         headers.put("Authorization", "Bearer " + this.token);
-        HttpURLConnection con = initConnection("POST", url, data, headers);
-        if (con == null) {
-            Logger.logger.severe("failed getting download link from OpenSubtitles");
-            return null;
-        }
-
+        final URL downloadUrl = url;
         StringBuilder content = new StringBuilder();
         int status;
         try {
+            HttpURLConnection con = Throttle.OPENSUBTITLES.send(() -> initConnection("POST", downloadUrl, data, headers));
+            if (con == null) {
+                Logger.logger.severe("failed getting download link from OpenSubtitles");
+                return null;
+            }
             status = con.getResponseCode();
-            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            InputStream stream = status < 400 ? con.getInputStream() : con.getErrorStream();
+            if (stream == null)
+                stream = InputStream.nullInputStream();
+            BufferedReader in = new BufferedReader(new InputStreamReader(stream));
             String inputLine;
             while ((inputLine = in.readLine()) != null)
                 content.append(inputLine);
@@ -298,7 +335,7 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
         }
 
         if (status != 200) {
-            Logger.logger.severe("login failed, error code is " + status + ", content is: " + content);
+            Logger.logger.severe("OpenSubtitles download link failed, error code is " + status + ", content is: " + content);
             return null;
         }
 
@@ -324,7 +361,13 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
             return false;
         }
         String subtitleExtension = FilenameUtils.getExtension(fileURL);
-        URLConnection con = (new URL(fileURL)).openConnection();
+        HttpURLConnection con;
+        try {
+            con = Throttle.OPENSUBTITLES.send(() -> Throttle.withTimeouts((HttpURLConnection) new URL(fileURL).openConnection()));
+        } catch (IOException e) {
+            Logger.logException(e, "downloading subtitle");
+            return false;
+        }
         File subFile = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
                 FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
                 subtitleExtension));
@@ -357,11 +400,8 @@ public class OpensubtitlesNewSubProvider implements ISubProvider {
     public String[] getRating(MediaFile mediaFile, String[] titleWordsArray) throws IOException {
         setLanguage(PropertiesClass.getLangSuffix().replace(".", ""));
         String[] ratingResponseArray = { "0", "0" };
-        if (!this.isTokenValid()) {
-            Logger.logger.info("OpenSubtitles not logged in, or token no longer valid");
-            if (!loginWithRetries())
-                return ratingResponseArray;
-        }
+        if (!ensureLoggedIn())
+            return ratingResponseArray;
         setIsMovie(mediaFile.getEpisode());
         generateQueryURL(mediaFile);
         String queryResp = getQueryJsonResponse(getQueryURL());

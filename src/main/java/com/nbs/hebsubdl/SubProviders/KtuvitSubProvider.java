@@ -38,6 +38,9 @@ public class KtuvitSubProvider implements ISubProvider {
     // the download identifier lives in the ASP.NET session, so the session
     // cookie has to travel with Login, and be swapped when the server renews it
     private final Map<String, String> cookies = new LinkedHashMap<>();
+    // each search thread has its own instance, but they share the stored
+    // login, and only one of them should log in when it has expired
+    private static final Object LOGIN_LOCK = new Object();
     boolean isHebrewOnly = true;
 
     @Override
@@ -49,14 +52,19 @@ public class KtuvitSubProvider implements ISubProvider {
     public String[] getRating (MediaFile mediaFile, String[] titleWordsArray) {
         String[] ratingResponseArray={"0","0"};
         this.dbAccess = new DbAccess();
-        boolean ktuvitLoginValid = this.dbAccess.loginValid();
         this.cookies.clear();
-        if (ktuvitLoginValid)
-            mergeCookieHeader(this.cookies, this.dbAccess.getCookie());
         try {
-            if (!ktuvitLoginValid && !doLoginKtuvit()) {
-                Logger.logger.warning("could not log in to Ktuvit, check your credentials");
-                return ratingResponseArray;
+            synchronized (LOGIN_LOCK) {
+                if (this.dbAccess.loginValid()) {
+                    // Login only: the stored session is shared by every search
+                    // thread, and a pending download lives in the session, so
+                    // each instance lets Ktuvit hand it a session of its own
+                    mergeCookieHeader(this.cookies, this.dbAccess.getCookie());
+                    this.cookies.remove("ASP.NET_SessionId");
+                } else if (!doLoginKtuvit()) {
+                    Logger.logger.warning("could not log in to Ktuvit, check your credentials");
+                    return ratingResponseArray;
+                }
             }
             String type = mediaFile.getEpisode().equals("0") ? "0" : "1";
             this.foundFilmID = initialSearch(type, mediaFile.getTitle(), mediaFile.getYear(), mediaFile.getImdbId());
@@ -79,7 +87,7 @@ public class KtuvitSubProvider implements ISubProvider {
         URL url = new URL("https://www.ktuvit.me/Services/MembershipService.svc/Login");
         String data = "{\"request\":{\"Email\":\"" + username + "\",\"Password\":\"" + password + "\"}}";
         HashMap<String, String> headers = getBasicHeaders();
-        HttpURLConnection con = initConnection("POST", url, data, headers, false);
+        HttpURLConnection con = Throttle.KTUVIT.send(() -> initConnection("POST", url, data, headers, false));
         if (con == null)
             return false;
 
@@ -195,7 +203,7 @@ public class KtuvitSubProvider implements ISubProvider {
 
     private HttpURLConnection initConnection(String type, URL url, String data, HashMap<String, String> headers, boolean cookieNeeded) {
         try {
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            HttpURLConnection con = Throttle.withTimeouts((HttpURLConnection) url.openConnection());
             con.setRequestMethod(type);
             if (cookieNeeded && !this.cookies.isEmpty())
                 con.setRequestProperty("cookie", cookieHeader(this.cookies));
@@ -359,7 +367,7 @@ public class KtuvitSubProvider implements ISubProvider {
     private StringBuffer sendRequest(String requestType, String urlStr, String data, HashMap<String,String> headers, boolean cookieNeeded) {
         try {
             URL url = new URL(urlStr);
-            HttpURLConnection con = initConnection(requestType, url, data, headers, cookieNeeded);
+            HttpURLConnection con = Throttle.KTUVIT.send(() -> initConnection(requestType, url, data, headers, cookieNeeded));
             if (con == null)
                 return null;
 
@@ -499,6 +507,7 @@ public class KtuvitSubProvider implements ISubProvider {
         headers = getDownloadHeaders(this.foundFilmID);
         try {
             URL url = new URL("https://www.ktuvit.me/Services/DownloadFile.ashx?DownloadIdentifier="+downloadID);
+            // not throttled: any delay after the request loses the identifier
             HttpURLConnection con = initConnection("GET", url, "", headers, true);
             if (con == null)
                 return false;

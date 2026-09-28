@@ -3,6 +3,7 @@ package com.nbs.hebsubdl;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nbs.hebsubdl.SubProviders.FindSubs;
+import com.nbs.hebsubdl.SubProviders.Throttle;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -19,62 +20,65 @@ import java.util.regex.Pattern;
 public class ImdbQuery {
     static void getImdbID(ArrayList<MediaFile> mediaFilesList) {
         for (MediaFile mediaFile : mediaFilesList) {
-            if (FindSubs.subAlreadyExists(mediaFile))
-                continue;
-            String searchQuery = mediaFile.getTitle() + (mediaFile.getYear() == null ? "" : " " + mediaFile.getYear());
-            String URL = prepareImdbQueryUrl(searchQuery);
-            searchQuery = searchQuery.replaceAll(" ", "_");
-            String callback = "imdb$" + searchQuery + "(";
-            try {
-                ImdbJson response = sendImdbQuery(callback, URL);
-                // for the case of no match at all
-                if (response.getD() == null) {
-                    mediaFile.setImdbId("");
-                    continue;
-                } else {
-                    String currentImdbId = null;
-                    double minScore = 100; // small enough
-                    int i = -1;
-                    for (ImdbJson.ImdbJsonArray item : response.getD()) {
-                        i++;
-                        boolean isMovie = mediaFile.getSeason() == "0" && mediaFile.getEpisode() == "0";
-                        if (item.getQid() == null || (isMovie != item.isMovie))
-                            continue;
-                        String imdbTitle = item.getL().toLowerCase();
-                        double score = Math.pow(1.2, i)
-                                * StringDistance.calculate(mediaFile.getTitle(), imdbTitle);
+            if (!FindSubs.subAlreadyExists(mediaFile))
+                lookUpImdbId(mediaFile);
+        }
+    }
 
-                        if (score < minScore) {
-                            minScore = score;
-                            currentImdbId = item.getId();
-                        }
+    public static void lookUpImdbId(MediaFile mediaFile) {
+        String searchQuery = mediaFile.getTitle() + (mediaFile.getYear() == null ? "" : " " + mediaFile.getYear());
+        String URL = prepareImdbQueryUrl(searchQuery);
+        searchQuery = searchQuery.replaceAll(" ", "_");
+        String callback = "imdb$" + searchQuery + "(";
+        try {
+            ImdbJson response = sendImdbQuery(callback, URL);
+            // for the case of no match at all
+            if (response.getD() == null || response.getD().length == 0) {
+                mediaFile.setImdbId("");
+                return;
+            } else {
+                String currentImdbId = null;
+                double minScore = 100; // small enough
+                int i = -1;
+                for (ImdbJson.ImdbJsonArray item : response.getD()) {
+                    i++;
+                    boolean isMovie = mediaFile.getSeason() == "0" && mediaFile.getEpisode() == "0";
+                    if (item.getQid() == null || (isMovie != item.isMovie))
+                        continue;
+                    String imdbTitle = item.getL().toLowerCase();
+                    double score = Math.pow(1.2, i)
+                            * StringDistance.calculate(mediaFile.getTitle(), imdbTitle);
+
+                    if (score < minScore) {
+                        minScore = score;
+                        currentImdbId = item.getId();
                     }
-                    if (currentImdbId == null || currentImdbId.isEmpty()) {
-                        currentImdbId = response.getD()[0].getId();
-                        Logger.logger.warning("couldn't find direct imdb id match, going for " + currentImdbId);
-                    } else {
-                        Logger.logger.fine("found imdb id " + currentImdbId);
-                    }
-                    // make sure we are getting correct imdbid for our query. a valid imdb id is
-                    // ttXXXXXXX, but I'm not sure
-                    // how many integers it will be in the future.
-                    Pattern pattern = Pattern.compile("tt\\d\\d\\d\\d.*");
-                    Matcher matcher = pattern.matcher(currentImdbId);
-                    if (matcher.find())
-                        mediaFile.setImdbId(currentImdbId);
-                    else
-                        mediaFile.setImdbId("");
                 }
-            } catch (IOException e) {
-                Logger.logException(e, "sending IMDB query, or getting IMDB ID from response.");
+                if (currentImdbId == null || currentImdbId.isEmpty()) {
+                    currentImdbId = response.getD()[0].getId();
+                    Logger.logger.warning("couldn't find direct imdb id match, going for " + currentImdbId);
+                } else {
+                    Logger.logger.fine("found imdb id " + currentImdbId);
+                }
+                // make sure we are getting correct imdbid for our query. a valid imdb id is
+                // ttXXXXXXX, but I'm not sure
+                // how many integers it will be in the future.
+                Pattern pattern = Pattern.compile("tt\\d\\d\\d\\d.*");
+                Matcher matcher = pattern.matcher(currentImdbId);
+                if (matcher.find())
+                    mediaFile.setImdbId(currentImdbId);
+                else
+                    mediaFile.setImdbId("");
             }
-
+        } catch (IOException e) {
+            Logger.logException(e, "sending IMDB query, or getting IMDB ID from response.");
         }
     }
 
     private static ImdbJson sendImdbQuery(String callback, String urlString) throws IOException {
         URL url = new URL(urlString);
-        URLConnection urlConnection = url.openConnection();
+        Throttle.IMDB.acquire();
+        URLConnection urlConnection = Throttle.withTimeouts(url.openConnection());
         InputStream inputStream = urlConnection.getInputStream();
         String response = "";
         try (BufferedReader bufferedReader = new BufferedReader(

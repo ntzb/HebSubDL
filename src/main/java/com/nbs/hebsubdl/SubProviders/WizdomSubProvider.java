@@ -10,14 +10,18 @@ import net.lingala.zip4j.model.FileHeader;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 public class WizdomSubProvider implements ISubProvider {
     private URL queryURL;
@@ -49,7 +53,14 @@ public class WizdomSubProvider implements ISubProvider {
     @Override
     public String getQueryJsonResponse(URL url) throws IOException {
         try {
-            URLConnection urlConnection = url.openConnection();
+            HttpURLConnection urlConnection = Throttle.WIZDOM.send(
+                    () -> Throttle.withTimeouts((HttpURLConnection) url.openConnection()));
+            // Wizdom answers 404 or 500 when it simply has nothing for the title
+            if (urlConnection.getResponseCode() != 200) {
+                Logger.logger.fine("Wizdom search answered " + urlConnection.getResponseCode());
+                urlConnection.disconnect();
+                return null;
+            }
             InputStream inputStream = urlConnection.getInputStream();
             String response = "";
             try (BufferedReader bufferedReader = new BufferedReader(
@@ -81,39 +92,68 @@ public class WizdomSubProvider implements ISubProvider {
 
     @Override
     public boolean downloadSubFile(String subId, MediaFile mediaFile) throws IOException {
-        File subZip = new File(FilenameUtils.removeExtension(mediaFile.getPathName() + "/" +
-                mediaFile.getFileName()) + ".zip");
         URL url = new URL("http://wizdom.xyz/api/files/sub/" + subId);
-        try (ReadableByteChannel rbc = Channels.newChannel(url.openStream()); // try with resources
-                FileOutputStream fos = new FileOutputStream(subZip)) {
-            long bytesTransferred = fos.getChannel().transferFrom(rbc, 0, 1000000);
+        HttpURLConnection con = Throttle.WIZDOM.send(() -> Throttle.withTimeouts((HttpURLConnection) url.openConnection()));
+        if (con == null || con.getResponseCode() != 200) {
+            Logger.logger.warning("Wizdom download failed" + (con == null ? "" : " with status " + con.getResponseCode()));
+            if (con != null)
+                con.disconnect();
+            return false;
+        }
+        // a private folder per download: episodes of one season download in
+        // parallel into the same folder, and their zips may hold same-named files
+        Path workDir = Files.createTempDirectory("hebsubdl-wizdom");
+        try {
+            File subZip = workDir.resolve("sub.zip").toFile();
+            long bytesTransferred;
+            try (ReadableByteChannel rbc = Channels.newChannel(con.getInputStream()); // try with resources
+                    FileOutputStream fos = new FileOutputStream(subZip)) {
+                bytesTransferred = fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+            }
             if (bytesTransferred == 0)
                 return false;
-            else {
-                StringBuilder subFileInZip = new StringBuilder();
-                final String[] allowedSubExtensions = { "srt", "sub" };
-                List<FileHeader> fileHeaders = new ZipFile(subZip).getFileHeaders();
-                String cleanedName = null;
-                for (FileHeader fileHeader : fileHeaders) {
-                    cleanedName = fileHeader.getFileName().replaceAll("^\\W+", "");
-                    if (FilenameUtils.isExtension(cleanedName, allowedSubExtensions)) {
-                        subFileInZip.append(fileHeader.getFileName());
+
+            try (ZipFile zip = new ZipFile(subZip)) {
+                String entry = null;
+                String extension = null;
+                for (FileHeader fileHeader : zip.getFileHeaders()) {
+                    String name = FilenameUtils.getName(fileHeader.getFileName());
+                    String ext = FilenameUtils.getExtension(name).toLowerCase();
+                    if (!fileHeader.isDirectory() && (ext.equals("srt") || ext.equals("sub"))) {
+                        entry = fileHeader.getFileName();
+                        extension = ext;
                         break;
                     }
                 }
-                new ZipFile(subZip).extractFile(subFileInZip.toString(), mediaFile.getPathName(), cleanedName);
-                File extractedSubFile = new File(mediaFile.getPathName() + "/" + cleanedName);
+                if (entry == null) {
+                    Logger.logger.warning("the Wizdom zip holds no srt/sub file");
+                    return false;
+                }
+                zip.extractFile(entry, workDir.toString(), "extracted." + extension);
                 File newSubFile = new File(String.format("%s/%s%s.%s", mediaFile.getPathName(),
                         FilenameUtils.removeExtension(mediaFile.getOriginalFileName()), PropertiesClass.getLangSuffix(),
-                        FilenameUtils.getExtension(extractedSubFile.toString())));
-                if (!extractedSubFile.renameTo(newSubFile))
-                    Logger.logger.warning("could not rename the file!");
-                fos.close();
-                if (!subZip.delete())
-                    Logger.logger.warning("can't delete the sub zip file!");
+                        extension));
+                try {
+                    Files.move(workDir.resolve("extracted." + extension), newSubFile.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    // e.g. a player has the old subtitle open; let the next provider try
+                    Logger.logException(e, "saving the Wizdom subtitle as " + newSubFile);
+                    return false;
+                }
             }
+        } finally {
+            deleteQuietly(workDir);
         }
         return true;
+    }
+
+    private static void deleteQuietly(Path dir) {
+        try (Stream<Path> paths = Files.walk(dir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+        } catch (IOException e) {
+            Logger.logger.fine("could not clean up " + dir);
+        }
     }
 
     static class QueryJsonResponse {
