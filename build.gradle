@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'com.nbs'
-version '2.3.3'
+version '2.4.0'
 
 // 14 keeps the jar and the portable exe runnable on the oldest JRE we claim to
 // support. Apple Silicon has no JDK 14 - it predates the port - so the macOS
